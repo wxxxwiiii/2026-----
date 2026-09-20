@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block page_back %}
+<a class="back-btn" href="{{ url_for('lesson_prep.plan_history', pid=versions[0].id if versions else 1) }}">← 返回</a>
+{% endblock %}
+{% block title %}版本对比{% endblock %}
+{% block page_title %}版本对比{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="toolbar">
+    <h2 style="margin:0">对比版本</h2>
+    <div class="form-inline">
+      <select onchange="location.href='{{ url_for('lesson_prep.plan_compare', group_id=versions[0].group_id) if versions else '#' }}?v1=' + this.value + '&v2=' + (new URLSearchParams(location.search).get('v2') || '')">
+        {% for v in versions %}<option value="{{ v.id }}" {{ 'selected' if v1 and v1.id == v.id }}>v{{ v.version }}</option>{% endfor %}
+      </select>
+      <span>对比</span>
+      <select onchange="location.href='{{ url_for('lesson_prep.plan_compare', group_id=versions[0].group_id) if versions else '#' }}?v2=' + this.value + '&v1=' + (new URLSearchParams(location.search).get('v1') || '')">
+        {% for v in versions %}<option value="{{ v.id }}" {{ 'selected' if v2 and v2.id == v.id }}>v{{ v.version }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+  {% if diff %}
+  <div class="plan-diff">{{ diff|safe }}</div>
+  {% else %}
+  <p class="muted">该教案暂无版本可对比。</p>
+  {% endif %}
+</div>
+{% endblock %}

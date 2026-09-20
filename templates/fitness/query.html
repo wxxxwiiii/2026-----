@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}体质数据查询{% endblock %}
+{% block page_title %}体质数据查询{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="toolbar">
+    <h2 style="margin:0">体质数据查询</h2>
+    <form method="get" action="{{ url_for('modules.fitness_query') }}" class="form-inline" style="margin:0">
+      <input type="text" name="keyword" value="{{ keyword }}" placeholder="姓名 / 学号" style="width:140px">
+      <select name="class_id" style="width:auto;margin-top:0">
+        <option value="">全部班级</option>
+        {% for c in classes %}<option value="{{ c.id }}" {{ 'selected' if cid == c.id }}>{{ c.name }}</option>{% endfor %}
+      </select>
+      <select name="year" style="width:auto;margin-top:0">
+        {% for y in year_options %}<option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}</option>{% endfor %}
+      </select>
+      <button type="submit" class="btn btn-outline">查询</button>
+    </form>
+  </div>
+
+  {% if rows %}
+  <table>
+    <thead><tr><th>班级</th><th>学号</th><th>姓名</th><th>性别</th><th>总分</th><th>等级</th><th>学年</th><th>操作</th></tr></thead>
+    <tbody>
+      {% for s, r in rows %}
+      <tr>
+        <td>{{ class_map.get(s.class_id, '—') }}</td>
+        <td>{{ s.student_no or '—' }}</td>
+        <td>{{ s.name }}</td>
+        <td>{{ s.gender or '—' }}</td>
+        <td>{{ r.total_score if r and r.total_score is not none else '—' }}</td>
+        <td>
+          {% if r and r.grade %}<span class="tag {{ 'success' if r.grade in ('优秀','良好') else ('warning' if r.grade == '及格' else 'danger') }}">{{ r.grade }}</span>{% else %}—{% endif %}
+        </td>
+        <td>{% if r %}{{ r.year }}{% else %}—{% endif %}</td>
+        <td>
+          {% if r %}
+          <form method="post" action="{{ url_for('modules.fitness_delete', rid=r.id) }}" style="display:inline" onsubmit="return confirm('确定删除该体测记录吗？')">
+            <button type="submit" class="btn btn-danger btn-sm">删除</button>
+          </form>
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">暂无体测数据。可到「体测评分录入」录入或导入数据。</p>
+  {% endif %}
+</div>
+{% endblock %}

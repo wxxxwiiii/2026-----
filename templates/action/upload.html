@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% block title %}上传视频 · AI 动作识别{% endblock %}
+{% block page_title %}上传视频{% endblock %}
+{% block content %}
+
+<div class="card" id="mp-status-card">
+  <h2>分析模式：MediaPipe 骨骼分析</h2>
+  <p class="muted" id="mp-status-text" style="margin:4px 0 0">正在检测 MediaPipe 环境…</p>
+</div>
+
+<div class="card">
+  <h2>单视频上传</h2>
+  <p class="muted" style="margin:4px 0 8px">选择视频、学生、运动项目与技术动作，提交后自动抽帧、MediaPipe 骨骼分析 + 视觉模型文字诊断。</p>
+  <form method="post" action="{{ url_for('modules.action_analyze') }}" enctype="multipart/form-data" class="form-grid" id="single-form">
+    <label>运动项目
+      <select name="sport_type" required onchange="fillTechniques(this.value, 'tech-single')">
+        <option value="">请选择项目</option>
+        {% for s in sport_types %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>技术动作
+      <select name="technique_action" id="tech-single">
+        <option value="">未指定</option>
+      </select>
+    </label>
+    <label>学生（可选）
+      <select name="student_id">
+        <option value="">（未指定）</option>
+        {% for s in students %}<option value="{{ s.id }}">{{ s.name }}（{{ class_map.get(s.class_id, '—') }}）</option>{% endfor %}
+      </select>
+    </label>
+    <label>训练视频 <input type="file" name="video" accept=".mp4,.mov,.avi,.mkv,.webm" required></label>
+    <div style="display:flex;align-items:flex-end"><button type="submit" class="btn btn-primary">上传并识别</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>批量上传</h2>
+  <p class="muted" style="margin:4px 0 8px">一次多选多个视频，统一设置运动项目与技术动作；按文件名「学生姓名.mp4」自动匹配学生库，未匹配到的标记为【未匹配学生】并标黄，仍正常分析。</p>
+  <form id="batch-form" class="form-grid" enctype="multipart/form-data">
+    <label>运动项目
+      <select name="sport_type" required onchange="fillTechniques(this.value, 'tech-batch')">
+        <option value="">请选择项目</option>
+        {% for s in sport_types %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>技术动作
+      <select name="technique_action" id="tech-batch">
+        <option value="">未指定</option>
+      </select>
+    </label>
+    <label>班级（可选，用于按班匹配学生）
+      <select name="class_id">
+        <option value="">全部班级</option>
+        {% for c in classes %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>训练视频（可多选）<input type="file" name="videos" accept=".mp4,.mov,.avi,.mkv,.webm" multiple required></label>
+    <div style="display:flex;align-items:flex-end"><button type="submit" class="btn btn-primary">开始批量识别</button></div>
+  </form>
+
+  <div id="batch-progress" style="display:none;margin-top:14px">
+    <div class="toolbar" style="display:flex;justify-content:space-between">
+      <b id="batch-state">处理中…</b>
+      <span class="muted" id="batch-count"></span>
+    </div>
+    <div style="background:var(--border);height:10px;border-radius:6px;overflow:hidden;margin:6px 0">
+      <div id="batch-bar" style="height:100%;width:0;background:var(--primary);transition:width .3s"></div>
+    </div>
+    <div id="batch-failures" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<div class="modal-mask" id="loading-overlay" style="display:none">
+  <div class="modal-box" style="width:360px;text-align:center">
+    <p style="margin:0;font-size:15px" id="loading-text">AI正在分析动作，请稍候…</p>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/echarts.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/action_common.js') }}"></script>
+<script>
+var SPORT_TECHNIQUES = {{ techniques|tojson }};
+
+function fillTechniques(sport, selectId) {
+  var sel = document.getElementById(selectId);
+  var opts = ['<option value="">未指定</option>'];
+  (SPORT_TECHNIQUES[sport] || []).forEach(function (t) {
+    opts.push('<option value="' + t + '">' + t + '</option>');
+  });
+  sel.innerHTML = opts.join('');
+}
+
+// 检测 MediaPipe 环境
+fetch('/action/mediapipe-status').then(function (r) { return r.json(); }).then(function (d) {
+  document.getElementById('mp-status-text').textContent = d.mediapipe_installed
+    ? 'MediaPipe 已安装，将提取人体关键点、计算关节角度与力矩。'
+    : 'MediaPipe 未安装，暂无关节参数。请关闭 Flask 服务后执行 pip install mediapipe 完成安装。';
+}).catch(function () {
+  document.getElementById('mp-status-text').textContent = '无法检测 MediaPipe 环境。';
+});
+
+// 单视频上传：提交时显示加载遮罩
+document.getElementById('single-form').addEventListener('submit', function () {
+  document.getElementById('loading-text').textContent = 'AI正在提取人体骨骼并分析动作，请稍候…';
+  document.getElementById('loading-overlay').style.display = 'flex';
+});
+
+// 批量上传：异步队列 + 进度轮询
+document.getElementById('batch-form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var form = e.target;
+  var fd = new FormData(form);
+  var files = form.querySelector('input[name=videos]').files;
+  if (!files.length) { alert('请选择要上传的视频'); return; }
+  var btn = form.querySelector('button[type=submit]');
+  btn.disabled = true; btn.textContent = '提交中…';
+  fetch('/action/batch-upload', { method: 'POST', body: fd })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      btn.disabled = false; btn.textContent = '开始批量识别';
+      if (d.error) { alert(d.error); return; }
+      startBatchPoll(d.batch_id, d.total);
+    })
+    .catch(function (e) {
+      btn.disabled = false; btn.textContent = '开始批量识别';
+      alert('批量提交失败：' + e);
+    });
+});
+
+function startBatchPoll(batchId, total) {
+  document.getElementById('batch-progress').style.display = '';
+  var timer = setInterval(function () {
+    fetch('/action/batch/status?batch_id=' + encodeURIComponent(batchId))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.error) { clearInterval(timer); alert(d.error); return; }
+        var done = d.done, failedCount = d.failed_count;
+        var pct = total ? Math.round(done / total * 100) : 0;
+        document.getElementById('batch-bar').style.width = pct + '%';
+        document.getElementById('batch-count').textContent = '已完成 ' + done + ' / ' + total + '，成功 ' + d.success + '，失败 ' + failedCount;
+        document.getElementById('batch-state').textContent = d.running ? '处理中…' : '已完成';
+        if (failedCount) {
+          var html = '<div class="card" style="border-color:var(--warning)"><h3>失败清单</h3><ul style="margin:0">';
+          d.failed.forEach(function (f) {
+            html += '<li>' + esc(f.student) + '（' + esc(f.filename) + '）：' + esc(f.error) + '</li>';
+          });
+          html += '</ul></div>';
+          document.getElementById('batch-failures').innerHTML = html;
+        }
+        if (!d.running) {
+          clearInterval(timer);
+          if (!failedCount) { alert('批量识别全部完成，共 ' + d.success + ' 条。'); }
+          window.location.href = '/action/history';
+        }
+      })
+      .catch(function () {});
+  }, 1500);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+{% block page_back %}
+<a class="back-btn" href="{{ url_for('workbench.index') }}">← 返回</a>
+{% endblock %}
+{% block title %}学生考勤 · 课堂智慧助手{% endblock %}
+{% block page_title %}学生考勤＋随机抽提问{% endblock %}
+{% block content %}
+
+{% if not classes %}
+<div class="card">
+  <p class="muted">还没有班级和学生。请先到「教师工作台 → 学生名册」录入班级和学生，再进行考勤和提问。</p>
+</div>
+{% else %}
+
+<div class="card">
+  <div class="toolbar">
+    <div class="form-inline">
+      <label style="margin:0">当前班级
+        <select onchange="location.href='{{ url_for('classroom.attendance') }}?class_id='+this.value" style="width:auto;margin-top:0">
+          {% for c in classes %}<option value="{{ c.id }}" {{ 'selected' if selected and c.id == selected.id }}>{{ c.name }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="muted">学生 {{ students|length }} 人</div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h2>学生考勤</h2>
+    <form method="get" action="{{ url_for('classroom.attendance') }}" class="form-inline" style="margin-bottom:10px">
+      <input type="hidden" name="class_id" value="{{ selected.id }}">
+      <label style="margin:0">日期 <input type="date" name="date" value="{{ att_date }}" onchange="this.form.submit()" style="width:auto;margin-top:0"></label>
+    </form>
+    <div class="muted" style="margin-bottom:10px">
+      出勤 {{ stats.get('出勤', 0) }} · 迟到 {{ stats.get('迟到', 0) }} · 请假 {{ stats.get('请假', 0) }} · 缺勤 {{ stats.get('缺勤', 0) }}
+    </div>
+    <form method="post" action="{{ url_for('classroom.attendance_save') }}">
+      <input type="hidden" name="class_id" value="{{ selected.id }}">
+      <input type="hidden" name="date" value="{{ att_date }}">
+      <table>
+        <thead><tr><th>学号</th><th>姓名</th><th>已抽取</th><th>考勤状态</th></tr></thead>
+        <tbody>
+          {% for s in students %}
+          <tr class="student-row" data-student-id="{{ s.id }}">
+            <td>{{ s.student_no or '—' }}</td>
+            <td><span class="stu-name">{{ s.name }}</span></td>
+            <td><span class="picked-mark" style="display:none;color:#6aa84f;font-weight:700">✓</span></td>
+            <td>
+              {% set cur = attendance_map.get(s.id, '出勤') %}
+              <label class="att-opt"><input type="radio" name="status_{{ s.id }}" value="出勤" {{ 'checked' if cur == '出勤' }}>出勤</label>
+              <label class="att-opt"><input type="radio" name="status_{{ s.id }}" value="迟到" {{ 'checked' if cur == '迟到' }}>迟到</label>
+              <label class="att-opt"><input type="radio" name="status_{{ s.id }}" value="请假" {{ 'checked' if cur == '请假' }}>请假</label>
+              <label class="att-opt"><input type="radio" name="status_{{ s.id }}" value="缺勤" {{ 'checked' if cur == '缺勤' }}>缺勤</label>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div style="margin-top:12px"><button type="submit" class="btn btn-primary">保存考勤</button></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>随机抽提问</h2>
+    <div class="form-inline">
+      <button type="button" class="btn btn-primary" id="pick-btn" data-class-id="{{ selected.id }}">随机抽取学生</button>
+      <button type="button" class="btn btn-outline" id="pick-reset-btn" data-class-id="{{ selected.id }}">重置抽取记录</button>
+    </div>
+    <div class="muted" id="pick-round" style="margin:8px 0">当前第 1 轮</div>
+    <div class="pick-result" id="pick-result"></div>
+    <form method="post" action="{{ url_for('classroom.answer_save') }}" id="answer-form" class="form-inline" style="display:none;margin-top:12px">
+      <input type="hidden" name="class_id" value="{{ selected.id }}">
+      <input type="hidden" name="student_id" id="answer-student-id">
+      <button type="submit" name="result" value="答对" class="btn btn-outline btn-sm">答对</button>
+      <button type="submit" name="result" value="部分" class="btn btn-outline btn-sm">部分答对</button>
+      <button type="submit" name="result" value="答错" class="btn btn-outline btn-sm">答错</button>
+      <button type="submit" name="result" value="未答" class="btn btn-outline btn-sm">未答</button>
+    </form>
+    <div id="pick-history" style="margin-top:16px"></div>
+  </div>
+</div>
+
+<style>
+  .stu-name.picked { color: #b6ac99; }
+</style>
+<script>
+var CLASS_ID = {{ selected.id }};
+var pickedIds = [];
+var currentRound = 1;
+
+function markPicked() {
+  document.querySelectorAll('.student-row').forEach(function (tr) {
+    var sid = parseInt(tr.getAttribute('data-student-id'), 10);
+    var mark = tr.querySelector('.picked-mark');
+    var nameEl = tr.querySelector('.stu-name');
+    var isPicked = pickedIds.indexOf(sid) >= 0;
+    if (mark) mark.style.display = isPicked ? '' : 'none';
+    if (nameEl) nameEl.classList.toggle('picked', isPicked);
+  });
+}
+
+function renderHistory(history) {
+  var el = document.getElementById('pick-history');
+  if (!history || !history.length) {
+    el.innerHTML = '<p class="muted">暂无抽问记录。</p>';
+    return;
+  }
+  var html = '<h3 style="font-size:14px;margin:0 0 8px">抽问记录（最近 %d 条）</h3>'.replace('%d', history.length);
+  html += '<ul style="margin:0;padding-left:18px;font-size:13px">';
+  history.forEach(function (h) {
+    html += '<li>' + esc(h.name) + (h.student_no ? '（' + esc(h.student_no) + '）' : '') +
+      ' · 第' + h.round + '轮 · <span class="muted">' + esc(h.time) + '</span></li>';
+  });
+  html += '</ul>';
+  el.innerHTML = html;
+}
+
+function loadPickState() {
+  fetch("{{ url_for('classroom.api_pick_records') }}?class_id=" + CLASS_ID)
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      pickedIds = d.picked_ids || [];
+      currentRound = d.round || 1;
+      document.getElementById('pick-round').textContent = '当前第 ' + currentRound + ' 轮';
+      markPicked();
+      renderHistory(d.history || []);
+    })
+    .catch(function () {});
+}
+
+document.getElementById('pick-btn').addEventListener('click', function () {
+  var cid = this.getAttribute('data-class-id');
+  fetch("{{ url_for('classroom.api_pick') }}?class_id=" + cid)
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.error) { alert(data.error); return; }
+      pickedIds = data.picked_ids || [];
+      currentRound = data.round || currentRound;
+      document.getElementById('pick-round').textContent = '当前第 ' + currentRound + ' 轮';
+      var resultEl = document.getElementById('pick-result');
+      resultEl.textContent = data.name + (data.student_no ? '（' + data.student_no + '）' : '');
+      resultEl.classList.remove('pick-anim');
+      void resultEl.offsetWidth;
+      resultEl.classList.add('pick-anim');
+      document.getElementById('answer-student-id').value = data.id;
+      document.getElementById('answer-form').style.display = 'flex';
+      markPicked();
+      // 刷新抽问记录
+      fetch("{{ url_for('classroom.api_pick_records') }}?class_id=" + cid)
+        .then(function (r) { return r.json(); })
+        .then(function (d) { renderHistory(d.history || []); });
+    });
+});
+
+document.getElementById('pick-reset-btn').addEventListener('click', function () {
+  if (!confirm('确定清空本轮已抽取名单，重新开始一轮随机抽问吗？')) return;
+  var cid = this.getAttribute('data-class-id');
+  fetch("{{ url_for('classroom.api_pick_reset') }}", {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'class_id=' + encodeURIComponent(cid)
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      pickedIds = d.picked_ids || [];
+      currentRound = d.round || (currentRound + 1);
+      document.getElementById('pick-round').textContent = '当前第 ' + currentRound + ' 轮';
+      document.getElementById('pick-result').textContent = '';
+      document.getElementById('answer-form').style.display = 'none';
+      markPicked();
+      fetch("{{ url_for('classroom.api_pick_records') }}?class_id=" + cid)
+        .then(function (r) { return r.json(); })
+        .then(function (d2) { renderHistory(d2.history || []); });
+    });
+});
+
+loadPickState();
+</script>
+{% endif %}
+{% endblock %}

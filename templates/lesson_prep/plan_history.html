@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block page_back %}
+<a class="back-btn" href="{{ url_for('lesson_prep.plans') }}">← 返回</a>
+{% endblock %}
+{% block title %}版本历史{% endblock %}
+{% block page_title %}版本历史：{{ plan.title }}{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="toolbar">
+    <h2 style="margin:0">版本列表（共 {{ versions|length }} 版）</h2>
+    <a class="btn btn-outline" href="{{ url_for('lesson_prep.plan_compare', group_id=plan.group_id) }}">版本对比</a>
+  </div>
+  <table>
+    <thead><tr><th>版本</th><th>时间</th><th>标题</th><th>内容预览</th><th>操作</th></tr></thead>
+    <tbody>
+      {% for v in versions %}
+      <tr>
+        <td><span class="tag info">v{{ v.version }}</span></td>
+        <td>{{ v.created_at }}</td>
+        <td>{{ v.title }}</td>
+        <td>{{ (v.content or '')[:60] }}…</td>
+        <td>
+          <a class="btn btn-outline btn-sm" href="{{ url_for('lesson_prep.plan_view', pid=v.id) }}">查看</a>
+          <form method="post" action="{{ url_for('lesson_prep.plan_rollback', pid=plan.id, vid=v.id) }}" style="display:inline" onsubmit="return confirm('还原到 v{{ v.version }}？（会生成一个新版本）')">
+            <button type="submit" class="btn btn-outline btn-sm">还原此版本</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

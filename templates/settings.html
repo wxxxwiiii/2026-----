@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}系统设置{% endblock %}
+{% block page_title %}系统设置{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>后台管理</h2>
+  <p class="muted">院校管理、公共文献 API 配置、API 调用日志。</p>
+  <a class="btn btn-outline" href="{{ url_for('admin.index') }}">进入后台管理</a>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h2>账号信息</h2>
+    <form method="post">
+      <label>用户名 <input type="text" value="{{ user.username }}" disabled></label>
+      <label>姓名 <input type="text" name="name" value="{{ user.name or '' }}"></label>
+      <button type="submit" class="btn btn-primary">保存账号信息</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>界面配色</h2>
+    <p class="muted">选择主题立即生效（也可在顶部栏切换）。</p>
+    <label>配色方案
+      <select class="theme-select">
+        <option value="theme-beige">米色 · 淡蓝</option>
+        <option value="theme-blue">纯白 · 淡蓝</option>
+        <option value="theme-green">清新绿</option>
+      </select>
+    </label>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h2>AI 模型服务配置</h2>
+    <p class="muted">用于智能备课、动作识别等 AI 功能。密钥仅保存在本机。支持 DeepSeek / 通义千问 / 文心一言 / GPT，可分别配置；本地模型无需密钥。</p>
+    <form method="post">
+      <label>DeepSeek 密钥 <input type="password" name="deepseek_api_key" value="{{ keys.deepseek }}" placeholder="sk-..." autocomplete="off"></label>
+      <label>通义千问 密钥 <input type="password" name="qwen_api_key" value="{{ keys.qwen }}" placeholder="sk-..." autocomplete="off"></label>
+      <label>文心一言 密钥 <input type="password" name="ernie_api_key" value="{{ keys.ernie }}" placeholder="..." autocomplete="off"></label>
+      <label>GPT 密钥 <input type="password" name="gpt_api_key" value="{{ keys.gpt }}" placeholder="sk-..." autocomplete="off"></label>
+      <button type="submit" class="btn btn-primary">保存密钥</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>修改密码</h2>
+    <form method="post">
+      <label>原密码 <input type="password" name="old_password" required></label>
+      <label>新密码 <input type="password" name="new_password" required></label>
+      <button type="submit" class="btn btn-primary">修改密码</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h2>账号管理</h2>
+  <p class="muted">新增教师账号；不同账号的课表数据相互隔离。</p>
+  <form method="post" action="{{ url_for('auth.account_add') }}" class="form-grid" style="margin-bottom:14px">
+    <label>用户名 <input type="text" name="username" required></label>
+    <label>姓名 <input type="text" name="name"></label>
+    <label>密码 <input type="password" name="password" required></label>
+    <div style="display:flex;align-items:flex-end"><button type="submit" class="btn btn-primary">新增账号</button></div>
+  </form>
+  <table>
+    <thead><tr><th>用户名</th><th>姓名</th><th>所属院校</th><th>操作</th></tr></thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.username }}</td>
+        <td>{{ u.name or '—' }}</td>
+        <td>
+          <form method="post" action="{{ url_for('auth.account_school', uid=u.id) }}" style="display:inline">
+            <select name="school_id" onchange="this.form.submit()">
+              <option value="">（未绑定）</option>
+              {% for s in schools %}<option value="{{ s.id }}" {{ 'selected' if u.school_id == s.id }}>{{ s.name }}</option>{% endfor %}
+            </select>
+          </form>
+        </td>
+        <td>
+          {% if u.id == user.id %}
+          <span class="muted">当前账号</span>
+          {% else %}
+          <form method="post" action="{{ url_for('auth.account_delete', uid=u.id) }}" style="display:inline" onsubmit="return confirm('确定删除账号 {{ u.username }} 吗？')">
+            <button type="submit" class="btn btn-danger btn-sm">删除</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>通用系统参数</h2>
+  <p class="muted">学期周次、消息通知等系统参数配置功能将在后续阶段上线。</p>
+  <div class="form-grid">
+    <label>学期名称 <input type="text" value="2026-2027 学年 第1学期" disabled></label>
+    <label>学期开始日期 <input type="date" disabled></label>
+  </div>
+</div>
+{% endblock %}

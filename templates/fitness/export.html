@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}体质报告导出{% endblock %}
+{% block page_title %}体质报告导出{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h2>体质报告导出</h2>
+  <div class="form-inline" style="margin-bottom:12px">
+    <label style="margin:0">班级
+      <select id="exp-class" style="width:auto;margin-top:0">
+        {% for c in classes %}<option value="{{ c.id }}" {{ 'selected' if c.id == cid }}>{{ c.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label style="margin:0">年份
+      <select id="exp-year" style="width:auto;margin-top:0">
+        {% for y in year_options %}<option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}</option>{% endfor %}
+      </select>
+    </label>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Excel 统计报表</h3>
+      <p class="muted">导出全班学生体测成绩明细（Excel），含总分、等级与各单项原始成绩。</p>
+      <button type="button" class="btn btn-primary" id="exp-excel">导出班级Excel报表</button>
+    </div>
+    <div class="card">
+      <h3>PDF 体质报告</h3>
+      <p class="muted">打开打印友好的班级体质报告页面，可在浏览器中「打印 / 另存为 PDF」。</p>
+      <button type="button" class="btn btn-primary" id="exp-pdf">打开PDF报告</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function baseUrl() {
+  var c = document.getElementById('exp-class').value;
+  var y = document.getElementById('exp-year').value.trim();
+  return 'class_id=' + encodeURIComponent(c) + '&year=' + encodeURIComponent(y);
+}
+document.getElementById('exp-excel').addEventListener('click', function () {
+  location.href = '{{ url_for('modules.fitness_export_excel') }}?' + baseUrl();
+});
+document.getElementById('exp-pdf').addEventListener('click', function () {
+  window.open('{{ url_for('modules.fitness_report_pdf') }}?' + baseUrl(), '_blank');
+});
+</script>
+{% endblock %}

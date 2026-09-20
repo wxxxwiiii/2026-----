@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% block title %}常见错误汇总 · AI 动作识别{% endblock %}
+{% block page_title %}常见错误汇总{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <h2 style="margin:0">班级常见错误汇总</h2>
+    <div class="form-inline" style="margin:0">
+      <select id="sum-class" style="width:auto;margin-top:0">
+        <option value="">全部班级</option>
+        {% for c in classes %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+      </select>
+      <select id="sum-sport" style="width:auto;margin-top:0" onchange="fillTechniques(this.value, 'sum-tech')">
+        <option value="">全部项目</option>
+        {% for s in sport_types %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+      </select>
+      <select id="sum-tech" style="width:auto;margin-top:0">
+        <option value="">全部技术动作</option>
+      </select>
+      <button type="button" class="btn btn-primary" id="sum-generate" onclick="generateSummary()">生成汇总</button>
+      <button type="button" class="btn btn-outline" id="sum-export" onclick="exportSummaryPDF()" disabled>导出PDF</button>
+    </div>
+  </div>
+  <p class="muted" style="margin:6px 0 0">按错误类型归类统计班级共性动作问题；同一项目内不同技术动作的同类错误合并统计。点击学生姓名可查看其个人诊断。</p>
+
+  <div id="sum-empty" class="muted" style="margin-top:12px">尚未生成汇总。选择班级、项目与技术动作后点击「生成汇总」。</div>
+  <div id="sum-result" style="display:none">
+    <div id="sum-overview" class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:12px"></div>
+    <div class="grid" style="margin-top:12px">
+      <div class="card"><div id="sum-donut" style="height:300px"></div></div>
+      <div class="card"><div id="sum-bar" style="height:300px"></div></div>
+    </div>
+    <div id="sum-list" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/echarts.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/action_common.js') }}"></script>
+<script>
+var SPORT_TECHNIQUES = {{ techniques|tojson }};
+var summaryData = null;
+
+function fillTechniques(sport, selectId) {
+  var sel = document.getElementById(selectId);
+  var opts = ['<option value="">全部技术动作</option>'];
+  (SPORT_TECHNIQUES[sport] || []).forEach(function (t) {
+    opts.push('<option value="' + t + '">' + t + '</option>');
+  });
+  sel.innerHTML = opts.join('');
+}
+
+function generateSummary() {
+  var cid = document.getElementById('sum-class').value;
+  var sport = document.getElementById('sum-sport').value;
+  var tech = document.getElementById('sum-tech').value;
+  var btn = document.getElementById('sum-generate');
+  btn.disabled = true; btn.textContent = '汇总中…';
+  fetch('/action/summary/data?class_id=' + encodeURIComponent(cid) + '&sport_type=' + encodeURIComponent(sport) + '&technique_action=' + encodeURIComponent(tech))
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      btn.disabled = false; btn.textContent = '生成汇总';
+      if (d.error) { alert(d.error); return; }
+      summaryData = d;
+      renderSummary(d);
+    })
+    .catch(function (e) { btn.disabled = false; btn.textContent = '生成汇总'; alert('汇总失败：' + e); });
+}
+
+function renderSummary(d) {
+  document.getElementById('sum-empty').style.display = 'none';
+  document.getElementById('sum-result').style.display = '';
+  var involved = d.groups.reduce(function (s, g) { return s + g.count; }, 0);
+  document.getElementById('sum-overview').innerHTML =
+    '<div class="card"><h3>本次分析总人数</h3><div class="stat-num">' + d.total_students + '<span class="stat-unit"> 人</span></div></div>' +
+    '<div class="card"><h3>常见错误类型</h3><div class="stat-num">' + d.groups.length + '<span class="stat-unit"> 类</span></div></div>' +
+    '<div class="card"><h3>累计涉及人次</h3><div class="stat-num">' + involved + '<span class="stat-unit"> 人次</span></div></div>';
+  renderSummaryCharts(d);
+  renderSummaryList(d);
+  document.getElementById('sum-export').disabled = false;
+}
+
+function renderSummaryCharts(d) {
+  var colors = ['#d9534f', '#e6a23c', '#5b9bd5', '#6aa84f', '#b07a2a', '#9b6fc8', '#4a8bc4'];
+  var names = d.groups.map(function (g) { return g.error_name; });
+  var pieData = d.groups.map(function (g, i) { return { value: g.count, name: g.error_name, itemStyle: { color: colors[i % colors.length] } }; });
+  var barData = d.groups.map(function (g, i) { return { value: g.count, itemStyle: { color: colors[i % colors.length] } }; });
+  var donutEl = document.getElementById('sum-donut');
+  var donutInst = echarts.getInstanceByDom(donutEl); if (donutInst) donutInst.dispose();
+  echarts.init(donutEl).setOption({
+    title: { text: '错误频次分布', left: 'center', textStyle: { fontSize: 14 } },
+    tooltip: { trigger: 'item', formatter: '{b}：{c} 人（{d}%）' },
+    legend: { bottom: 0, type: 'scroll' },
+    series: [{ type: 'pie', radius: ['40%', '65%'], center: ['50%', '45%'], data: pieData }]
+  });
+  var barEl = document.getElementById('sum-bar');
+  var barInst = echarts.getInstanceByDom(barEl); if (barInst) barInst.dispose();
+  echarts.init(barEl).setOption({
+    title: { text: '各错误出现人数', left: 'center', textStyle: { fontSize: 14 } },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: 10, right: 40, bottom: 10, top: 40, containLabel: true },
+    xAxis: { type: 'value', minInterval: 1 },
+    yAxis: { type: 'category', inverse: true, data: names, axisLabel: { width: 130, overflow: 'truncate' } },
+    series: [{ type: 'bar', barWidth: '55%', label: { show: true, position: 'right' }, data: barData }]
+  });
+}
+
+function renderSummaryList(d) {
+  var html = '';
+  d.groups.forEach(function (g, i) {
+    html += '<div class="card" style="margin-top:12px">';
+    html += '<h3>' + (i + 1) + '. ' + esc(g.error_name) + ' <span class="tag danger">' + g.count + ' 人</span></h3>';
+    html += '<p class="muted" style="margin:6px 0">涉及学生：';
+    html += g.students.map(function (s) {
+      if (s.analysis_id && d.analyses[s.analysis_id]) {
+        return '<a class="sum-student" onclick="openAnalysisModal(' + s.analysis_id + ')">' + esc(s.name) + '</a>';
+      }
+      return '<span>' + esc(s.name) + '</span>';
+    }).join('、');
+    html += '</p>';
+    html += '<p class="muted" style="margin:6px 0">涉及技术动作：' + esc((g.techniques || []).join('、')) + '</p>';
+    html += '<p style="margin:6px 0"><b>统一错误描述：</b>' + esc(g.description) + '</p>';
+    html += '<p style="margin:6px 0"><b>统一纠正建议：</b>' + esc(g.suggestion) + '</p>';
+    html += '</div>';
+  });
+  document.getElementById('sum-list').innerHTML = html;
+}
+
+function exportSummaryPDF() {
+  if (!summaryData) { alert('请先生成班级错误汇总'); return; }
+  var title = (summaryData.class_name || '班级') + ' · ' + (summaryData.sport_name || '全部项目') + ' · 常见错误汇总';
+  var subtitle = (summaryData.class_name || '') + ' · ' + (summaryData.sport_name || '') + ' · ' +
+    (summaryData.technique_name || '') + ' · 共 ' + summaryData.total_students + ' 人 · 生成于 ' + (summaryData.generated_at || '');
+  var groups = summaryData.groups.map(function (g) {
+    return { error_name: g.error_name, count: g.count,
+      students: g.students.map(function (s) { return s.name; }),
+      techniques: g.techniques, description: g.description, suggestion: g.suggestion };
+  });
+  var form = document.createElement('form');
+  form.method = 'post'; form.action = '/action/summary/pdf'; form.target = '_blank';
+  var inp = document.createElement('input');
+  inp.type = 'hidden'; inp.name = 'data';
+  inp.value = JSON.stringify({ title: title, subtitle: subtitle, total_students: summaryData.total_students, groups: groups });
+  form.appendChild(inp);
+  document.body.appendChild(form); form.submit(); document.body.removeChild(form);
+}
+</script>
+<style>
+  .sum-student { color: #3f7fb5; cursor: pointer; text-decoration: none; }
+  .sum-student:hover { text-decoration: underline; }
+</style>
+{% endblock %}

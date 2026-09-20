@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}学生动作成长档案 · AI 动作识别{% endblock %}
+{% block page_title %}学生动作成长档案{% endblock %}
+{% block content %}
+
+<div class="card">
+  <form class="form-inline" onsubmit="return false;">
+    <label style="margin:0">学生
+      <select id="pf-student" style="width:auto;margin-top:0" onchange="loadProfile()">
+        <option value="">请选择学生</option>
+        {% for s in students %}<option value="{{ s.id }}">{{ s.name }}（{{ class_map.get(s.class_id, '—') }}）</option>{% endfor %}
+      </select>
+    </label>
+  </form>
+</div>
+
+<div id="pf-empty" class="card"><p class="muted" style="margin:0">请选择学生，查看其动作诊断记录时间线与关键指标变化趋势。</p></div>
+
+<div id="pf-result" style="display:none">
+  <div class="card">
+    <h2 id="pf-title" style="margin:0 0 12px"></h2>
+    <div id="pf-chart" style="height:320px"></div>
+  </div>
+  <div class="card">
+    <h2>诊断记录时间线 & 错误演变</h2>
+    <div id="pf-timeline"></div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/echarts.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/action_common.js') }}"></script>
+<script>
+var chart = null;
+
+function loadProfile() {
+  var sid = document.getElementById('pf-student').value;
+  if (!sid) { return; }
+  fetch('/action/profile/data?student_id=' + encodeURIComponent(sid))
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.error) { alert(d.error); return; }
+      renderProfile(d);
+    })
+    .catch(function (e) { alert('加载失败：' + e); });
+}
+
+function renderProfile(d) {
+  document.getElementById('pf-empty').style.display = 'none';
+  document.getElementById('pf-result').style.display = '';
+  document.getElementById('pf-title').textContent = d.student + ' · 共 ' + d.total + ' 次诊断记录';
+  renderTrend(d.metrics_series);
+  renderTimeline(d.timeline);
+}
+
+function renderTrend(series) {
+  var el = document.getElementById('pf-chart');
+  if (chart) chart.dispose();
+  chart = echarts.init(el);
+  var joints = Object.keys(series || {});
+  if (!joints.length) {
+    chart.setOption({ title: { text: '暂无关节角度数据', left: 'center', top: 'middle', textStyle: { fontSize: 14, color: '#999' } } });
+    return;
+  }
+  var xData = []; var maxIdx = 0;
+  joints.forEach(function (j) { series[j].forEach(function (p) { if (p.index > maxIdx) maxIdx = p.index; }); });
+  for (var i = 1; i <= maxIdx; i++) xData.push('第' + i + '次');
+  var colors = ['#5b9bd5', '#e6a23c', '#6aa84f', '#d9534f', '#9b6fc8', '#b07a2a'];
+  var lines = joints.map(function (j, idx) {
+    return { name: j, type: 'line', smooth: true, symbol: 'circle',
+      itemStyle: { color: colors[idx % colors.length] },
+      data: xData.map(function (_, xi) {
+        var p = (series[j] || []).filter(function (q) { return q.index === xi + 1; })[0];
+        return p ? p.avg_angle : null;
+      }) };
+  });
+  chart.setOption({
+    title: { text: '关键关节平均角度变化趋势', left: 'center', textStyle: { fontSize: 14 } },
+    tooltip: { trigger: 'axis' },
+    legend: { bottom: 0 },
+    grid: { left: 40, right: 20, bottom: 40, top: 40 },
+    xAxis: { type: 'category', data: xData },
+    yAxis: { type: 'value', name: '角度(°)' },
+    series: lines
+  });
+}
+
+function renderTimeline(timeline) {
+  var html = '';
+  timeline.forEach(function (t) {
+    html += '<div style="border-left:2px solid var(--border);padding:0 0 12px 14px;margin-left:6px;position:relative">';
+    html += '<div style="position:absolute;left:-6px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--primary)"></div>';
+    html += '<b>第' + t.index + '次 · ' + esc(t.sport_type) + (t.technique_action ? (' · ' + esc(t.technique_action)) : '') + '</b>';
+    html += ' <span class="muted">' + esc(t.created_at) + '</span> ';
+    html += '<button type="button" class="btn btn-outline btn-sm" onclick="openAnalysisModal(' + t.id + ')">查看详情</button>';
+    html += '<div class="muted" style="font-size:13px;margin-top:4px">' + esc((t.result || '').slice(0, 160)) + ((t.result || '').length > 160 ? '…' : '') + '</div>';
+    html += '</div>';
+  });
+  document.getElementById('pf-timeline').innerHTML = html;
+}
+</script>
+{% endblock %}

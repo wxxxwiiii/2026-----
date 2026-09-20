@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block page_back %}
+<a class="back-btn" href="{{ url_for('lesson_prep.index') }}">← 返回</a>
+{% endblock %}
+{% block title %}备课成果管理{% endblock %}
+{% block page_title %}备课成果管理{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="toolbar">
+    <h2 style="margin:0">备课成果</h2>
+    <form method="get" action="{{ url_for('lesson_prep.outcomes') }}" class="form-inline" style="margin:0">
+      <input type="text" name="keyword" value="{{ keyword }}" placeholder="搜索教案标题/主题/内容" style="width:220px">
+      <select name="sport_item" style="width:auto;margin-top:0">
+        <option value="">全部项目</option>
+        {% for s in sport_items %}<option value="{{ s }}" {{ 'selected' if cur_sport == s }}>{{ s }}</option>{% endfor %}
+      </select>
+      <select name="grade" style="width:auto;margin-top:0">
+        <option value="">全部年级</option>
+        {% for g in grades %}<option value="{{ g }}" {{ 'selected' if cur_grade == g }}>{{ g }}</option>{% endfor %}
+      </select>
+      <button type="submit" class="btn btn-outline">检索</button>
+    </form>
+  </div>
+
+  {% if plans %}
+  <table>
+    <thead><tr><th>教案标题</th><th>项目</th><th>年级</th><th>版本</th><th>学习单</th><th>操作</th></tr></thead>
+    <tbody>
+      {% for p in plans %}
+      <tr>
+        <td>{{ p.title }}</td>
+        <td>{{ p.sport_item or '—' }}</td>
+        <td>{{ p.grade or '—' }}</td>
+        <td>v{{ version_counts.get(p.group_id, 1) }}</td>
+        <td>
+          {% if sheet_counts.get(p.id, 0) > 0 %}
+          <span class="tag success">已生成 {{ sheet_counts[p.id] }} 阶段</span>
+          {% else %}
+          <span class="muted">未生成</span>
+          {% endif %}
+        </td>
+        <td>
+          <a class="btn btn-outline btn-sm" href="{{ url_for('lesson_prep.plan_view', pid=p.id) }}">查看教案</a>
+          <a class="btn btn-primary btn-sm" href="{{ url_for('lesson_prep.outcome_sheets', pid=p.id) }}">{{ '查看学习单' if sheet_counts.get(p.id, 0) > 0 else '生成学习单' }}</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">暂无备课成果。可先到「AI 智能备课中心」或「教案编辑」生成教案，再到此处生成学习单。</p>
+  {% endif %}
+</div>
+{% endblock %}

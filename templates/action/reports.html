@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}动作诊断报告库 · AI 动作识别{% endblock %}
+{% block page_title %}动作诊断报告库{% endblock %}
+{% block content %}
+
+<div class="card">
+  <form method="get" action="{{ url_for('modules.action_reports') }}" class="form-inline" style="flex-wrap:wrap">
+    <label style="margin:0">班级
+      <select name="class_id" style="width:auto;margin-top:0">
+        <option value="">全部班级</option>
+        {% for c in classes %}<option value="{{ c.id }}" {{ 'selected' if cid == c.id }}>{{ c.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label style="margin:0">项目
+      <select name="sport_type" style="width:auto;margin-top:0">
+        <option value="">全部项目</option>
+        {% for s in sport_types %}<option value="{{ s }}" {{ 'selected' if s == sport_type }}>{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+    <label style="margin:0">学生
+      <select name="student_id" style="width:auto;margin-top:0">
+        <option value="">全部学生</option>
+        {% for s in students %}<option value="{{ s.id }}" {{ 'selected' if student_id == s.id }}>{{ s.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label style="margin:0">年份
+      <select name="year" style="width:auto;margin-top:0">
+        <option value="">全部年份</option>
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if year == y }}>{{ y }}</option>{% endfor %}
+      </select>
+    </label>
+    <button type="submit" class="btn btn-outline">筛选</button>
+    <a class="btn btn-outline btn-sm" href="{{ url_for('modules.action_reports') }}">重置</a>
+  </form>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <h2 style="margin:0">诊断报告</h2>
+    <div class="form-inline" style="margin:0">
+      <button type="button" class="btn btn-outline" onclick="toggleSelectAll(this)">全选</button>
+      <button type="button" class="btn btn-primary" onclick="batchExportPDF()">批量导出所选报告</button>
+    </div>
+  </div>
+  {% if analyses %}
+  <table>
+    <thead><tr><th><input type="checkbox" id="check-all" onclick="toggleAll(this)"></th><th>学生姓名</th><th>项目</th><th>技术动作</th><th>识别时间</th><th>报告状态</th><th>操作</th></tr></thead>
+    <tbody>
+      {% for a in analyses %}
+      <tr>
+        <td><input type="checkbox" class="report-check" value="{{ a.id }}"></td>
+        <td>{{ student_map.get(a.student_id, '—') }}</td>
+        <td>{{ a.sport_type or '—' }}</td>
+        <td>{{ a.technique_action or '未识别技术动作' }}</td>
+        <td>{{ a.created_at.strftime('%Y-%m-%d %H:%M') if a.created_at else '—' }}</td>
+        <td>
+          {% set st = a.status or 'success' %}
+          <span class="tag {{ 'success' if st == 'success' else ('warning' if st in ('pending','processing','no_human','not_install') else 'danger') }}">{{ status_labels.get(st, st) }}</span>
+        </td>
+        <td>
+          {% if a.video_path %}<button type="button" class="btn btn-outline btn-sm" onclick="openAnalysisModal({{ a.id }})">预览</button>{% endif %}
+          <a class="btn btn-outline btn-sm" href="{{ url_for('modules.action_report_pdf', aid=a.id) }}" target="_blank">下载PDF</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">暂无诊断报告。</p>
+  {% endif %}
+</div>
+
+<script src="{{ url_for('static', filename='js/action_common.js') }}"></script>
+<script>
+function toggleAll(master) {
+  document.querySelectorAll('.report-check').forEach(function (c) { c.checked = master.checked; });
+  updateBtn();
+}
+function toggleSelectAll(btn) {
+  var checks = document.querySelectorAll('.report-check');
+  var allChecked = Array.prototype.every.call(checks, function (c) { return c.checked; });
+  checks.forEach(function (c) { c.checked = !allChecked; });
+  document.getElementById('check-all').checked = !allChecked;
+  btn.textContent = allChecked ? '全选' : '取消全选';
+}
+function updateBtn() {}
+document.querySelectorAll('.report-check').forEach(function (c) { c.addEventListener('change', function () {
+  var all = document.querySelectorAll('.report-check');
+  document.getElementById('check-all').checked = Array.prototype.every.call(all, function (x) { return x.checked; });
+}); });
+
+function batchExportPDF() {
+  var ids = Array.prototype.map.call(document.querySelectorAll('.report-check:checked'), function (c) { return c.value; });
+  if (!ids.length) { alert('请先勾选要导出的报告'); return; }
+  var form = document.createElement('form');
+  form.method = 'post'; form.action = '/action/reports/pdf'; form.target = '_blank';
+  ids.forEach(function (id) {
+    var inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'ids'; inp.value = id;
+    form.appendChild(inp);
+  });
+  document.body.appendChild(form); form.submit(); document.body.removeChild(form);
+}
+</script>
+{% endblock %}

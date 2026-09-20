@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}编辑{{ r.kind }}{% endblock %}
+{% block page_title %}编辑{{ r.kind }}{% endblock %}
+{% block content %}
+<div class="card">
+  <form method="post">
+    <label>标题 <input type="text" name="title" value="{{ r.title }}" required></label>
+    <div class="form-grid">
+      <label>关联班级
+        <select name="class_id"><option value="">（未指定）</option>{% for c in classes %}<option value="{{ c.id }}" {{ 'selected' if r.class_id == c.id }}>{{ c.name }}</option>{% endfor %}</select>
+      </label>
+      <label>课程名称 <input type="text" name="course_name" value="{{ r.course_name or '' }}"></label>
+      <label>日期 <input type="date" name="date" value="{{ r.date or '' }}"></label>
+    </div>
+    <label>内容 <textarea name="content" style="min-height:200px">{{ r.content or '' }}</textarea></label>
+    <button type="submit" class="btn btn-primary">保存</button>
+    <a href="{{ url_for('workbench.reflections', kind=r.kind) }}" class="btn">取消</a>
+  </form>
+</div>
+{% endblock %}

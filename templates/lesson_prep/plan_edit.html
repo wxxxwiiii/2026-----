@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block page_back %}
+<a class="back-btn" href="{{ url_for('lesson_prep.plans') }}">← 返回</a>
+{% endblock %}
+{% block title %}{{ '编辑教案' if plan else '新建教案' }}{% endblock %}
+{% block page_title %}{{ '编辑教案' if plan else '新建教案' }}{% endblock %}
+{% block content %}
+<div class="card">
+  <form method="post">
+    <div class="form-grid">
+      <label>教案标题 <input type="text" name="title" value="{{ plan.title if plan else '' }}" required></label>
+      <label>课程主题 <input type="text" name="subject" value="{{ plan.subject if plan else '' }}" placeholder="如：篮球"></label>
+      <label>项目类型
+        <select name="sport_item">{% for s in sport_items %}<option value="{{ s }}" {{ 'selected' if plan and plan.sport_item == s }}>{{ s }}</option>{% endfor %}</select>
+      </label>
+      <label>年级
+        <select name="grade">{% for g in grades %}<option value="{{ g }}" {{ 'selected' if plan and plan.grade == g }}>{{ g }}</option>{% endfor %}</select>
+      </label>
+      <label>资源分类
+        <select name="category">{% for c in categories %}<option value="{{ c }}" {{ 'selected' if plan and plan.category == c }}>{{ c }}</option>{% endfor %}</select>
+      </label>
+      <label>课时 <input type="text" name="duration" value="{{ plan.duration if plan else '' }}" placeholder="如：45 分钟"></label>
+      <label>关联班级
+        <select name="class_id"><option value="">（未指定）</option>{% for c in classes %}<option value="{{ c.id }}" {{ 'selected' if plan and plan.class_id == c.id }}>{{ c.name }}</option>{% endfor %}</select>
+      </label>
+    </div>
+    {% if quality == 'partial' %}
+    <div class="third-party-notice" style="margin-bottom:10px">
+      ⚠️ 该文档排版较复杂，正文已尽力还原，建议查看原始 Word 文档核对。
+      {% if original_url %}<a class="btn btn-outline btn-sm" href="{{ original_url }}" target="_blank" style="margin-left:8px">查看 Word 原版</a>{% endif %}
+    </div>
+    {% endif %}
+    <div class="toolbar" style="margin-top:6px">
+      <span class="muted">教案内容</span>
+      <button type="button" class="btn btn-outline btn-sm" id="fill-template">套用体育教案模板</button>
+    </div>
+    <div class="editor-toolbar">
+      <button type="button" data-cmd="bold" title="加粗"><b>B</b></button>
+      <button type="button" data-cmd="italic" title="斜体"><i>I</i></button>
+      <button type="button" data-cmd="underline" title="下划线"><u>U</u></button>
+      <button type="button" data-cmd="insertUnorderedList" title="列表">• 列表</button>
+    </div>
+    <div id="editor" contenteditable="true" class="rich-editor">{{ plan.content|safe if plan else '' }}</div>
+    <textarea name="content" id="content-hidden" style="display:none"></textarea>
+    <div style="margin-top:14px">
+      <button type="submit" class="btn btn-primary">{{ '保存为新版本' if plan else '保存教案' }}</button>
+    </div>
+  </form>
+</div>
+<script>
+document.querySelectorAll('[data-cmd]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.execCommand(btn.getAttribute('data-cmd'), false, null);
+    document.getElementById('editor').focus();
+  });
+});
+document.querySelector('form').addEventListener('submit', function () {
+  document.getElementById('content-hidden').value = document.getElementById('editor').innerHTML;
+});
+document.getElementById('fill-template').addEventListener('click', function () {
+  var editor = document.getElementById('editor');
+  if (editor.innerHTML.trim() && !confirm('套用模板将覆盖当前内容，确定吗？')) return;
+  editor.innerHTML = {{ template|tojson }}.replace(/\n/g, '<br>');
+});
+</script>
+{% endblock %}

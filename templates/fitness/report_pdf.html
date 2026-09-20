@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>体质健康报告</title>
+  <style>
+    body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; color: #333; margin: 32px; }
+    h1 { font-size: 22px; text-align: center; margin-bottom: 4px; }
+    .sub { text-align: center; color: #888; font-size: 13px; margin-bottom: 20px; }
+    .summary { display: flex; gap: 16px; justify-content: center; margin-bottom: 24px; flex-wrap: wrap; }
+    .stat { border: 1px solid #ddd; border-radius: 8px; padding: 12px 20px; text-align: center; min-width: 100px; }
+    .stat .n { font-size: 22px; font-weight: 700; }
+    .stat .l { font-size: 12px; color: #888; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: center; }
+    th { background: #f2f2f2; }
+    .danger { color: #b03a34; font-weight: 600; }
+    .success { color: #4a7c33; }
+    @media print { body { margin: 10mm; } }
+  </style>
+</head>
+<body>
+  <h1>{{ cls.name if cls else '' }} 体质健康报告</h1>
+  <div class="sub">{{ year }}{% if item_label %} · {{ item_label }}{% endif %} · 共 {{ stats.n }} 人</div>
+  <div class="summary">
+    <div class="stat"><div class="n">{{ stats.dist.get('优秀',0) }}</div><div class="l">优秀</div></div>
+    <div class="stat"><div class="n">{{ stats.dist.get('良好',0) }}</div><div class="l">良好</div></div>
+    <div class="stat"><div class="n">{{ stats.dist.get('合格',0) }}</div><div class="l">合格</div></div>
+    <div class="stat"><div class="n">{{ stats.dist.get('不及格',0) }}</div><div class="l">不及格</div></div>
+    <div class="stat"><div class="n">{{ stats.avg }}</div><div class="l">平均分</div></div>
+  </div>
+  <table>
+    <thead>
+      <tr><th>学号</th><th>姓名</th><th>性别</th><th>总分</th><th>等级</th><th>肺活量</th><th>50米</th><th>立定跳远</th><th>力量</th><th>耐力跑</th></tr>
+    </thead>
+    <tbody>
+      {% for s in students %}
+      {% set r = records.get(s.id) %}
+      <tr>
+        <td>{{ s.student_no or '—' }}</td>
+        <td>{{ s.name }}</td>
+        <td>{{ s.gender or '—' }}</td>
+        {% if r %}
+        <td class="{{ 'danger' if r.total_score < 60 else ('success' if r.total_score >= 90 else '') }}">{{ r.total_score }}</td>
+        <td>{{ r.grade }}</td>
+        <td>{{ r.vital_capacity or '—' }}</td>
+        <td>{{ r.run_50m or '—' }}</td>
+        <td>{{ r.standing_long_jump or '—' }}</td>
+        <td>{{ (r.pull_up if s.gender == '男' else r.sit_up) or '—' }}</td>
+        <td>{{ (r.run_1000m if s.gender == '男' else r.run_800m) or '—' }}</td>
+        {% else %}
+        <td colspan="6">未录入</td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}体质预警名单{% endblock %}
+{% block page_title %}体质预警名单{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="toolbar">
+    <h2 style="margin:0">体质预警名单</h2>
+    <form method="get" action="{{ url_for('modules.fitness_warnings') }}" class="form-inline" style="margin:0">
+      <select name="class_id" style="width:auto;margin-top:0">
+        <option value="">全部班级</option>
+        {% for c in classes %}<option value="{{ c.id }}" {{ 'selected' if cid == c.id }}>{{ c.name }}</option>{% endfor %}
+      </select>
+      <select name="year" style="width:auto;margin-top:0">
+        {% for y in year_options %}<option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}</option>{% endfor %}
+      </select>
+      <button type="submit" class="btn btn-outline">筛选</button>
+      <a class="btn btn-outline btn-sm" href="{{ url_for('modules.fitness_export_excel', class_id=cid, year=year) }}">导出预警名单Excel</a>
+    </form>
+  </div>
+
+  {% if warn %}
+  <table>
+    <thead><tr><th>班级</th><th>学号</th><th>姓名</th><th>总分</th><th>等级</th><th>薄弱项目</th><th>预警等级</th><th>预警原因</th></tr></thead>
+    <tbody>
+      {% for w in warn %}
+      <tr>
+        <td>{{ w.class.name }}</td>
+        <td>{{ w.student.student_no or '—' }}</td>
+        <td>{{ w.student.name }}</td>
+        <td>{{ w.record.total_score }}</td>
+        <td><span class="tag {{ 'danger' if w.record.grade == '不及格' else 'warning' }}">{{ w.record.grade }}</span></td>
+        <td>{{ '、'.join(w.weak) if w.weak else '—' }}</td>
+        <td><span class="tag {{ 'danger' if w.level == 'high' else 'warning' }}">{{ '高危' if w.level == 'high' else '关注' }}</span></td>
+        <td>{{ w.reason }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">当前筛选条件下暂无预警学生。</p>
+  {% endif %}
+</div>
+{% endblock %}

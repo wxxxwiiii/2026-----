@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block page_back %}
+<a class="back-btn" href="{{ url_for('lesson_prep.outcomes') }}">← 返回成果管理</a>
+{% endblock %}
+{% block title %}学习单{% endblock %}
+{% block page_title %}学习单{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="toolbar">
+    <h2 style="margin:0">{{ plan.title }} — 一体化学习单</h2>
+    <div class="form-inline">
+      <button type="button" class="btn btn-primary" id="gen-sheet">生成学习单</button>
+      <a class="btn btn-outline" href="{{ url_for('lesson_prep.outcome_sheets_export', pid=plan.id) }}">导出下载</a>
+    </div>
+  </div>
+
+  <div class="form-inline" style="margin:8px 0">
+    <label style="margin:0">项目：<b>{{ plan.sport_item or '—' }}</b></label>
+    <label style="margin:0">年级：<b>{{ plan.grade or '—' }}</b></label>
+    <label style="margin:0">版本：<b>v{{ plan.version }}</b></label>
+  </div>
+  <div id="gen-status" class="muted" style="margin:0 0 8px">学习单根据教案自动生成课前/课中/课后三阶段，可手动修改后保存。</div>
+
+  <form method="post" action="{{ url_for('lesson_prep.outcome_sheets_save', pid=plan.id) }}">
+    {% for phase in ['课前', '课中', '课后'] %}
+    {% set s = sheets_map.get(phase) %}
+    <label style="margin-bottom:12px">{{ phase }}学习单
+      <textarea name="content_{{ phase }}" rows="6" style="min-height:120px">{{ s.content if s else '' }}</textarea>
+    </label>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary">保存学习单</button>
+  </form>
+</div>
+
+<script>
+document.getElementById('gen-sheet').addEventListener('click', function () {
+  var status = document.getElementById('gen-status');
+  var state = AI.getState();
+  status.textContent = '生成中…';
+  this.disabled = true;
+  fetch('/api/rag/learning-sheet', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lesson_plan_id: {{ plan.id }}, provider: state.provider, model: state.model })
+  }).then(function (resp) {
+    var reader = resp.body.getReader(); var dec = new TextDecoder(); var buf = '';
+    function pump() {
+      return reader.read().then(function (r) {
+        if (r.done) {
+          status.textContent = '生成完成，正在刷新…';
+          setTimeout(function () { location.reload(); }, 300);
+          return;
+        }
+        buf += dec.decode(r.value, { stream: true });
+        var lines = buf.split('\n'); buf = lines.pop();
+        lines.forEach(function (line) {
+          line = line.trim();
+          if (line.indexOf('data: ') !== 0) return;
+          var payload = line.slice(6);
+          if (payload === '[DONE]') return;
+          try { var o = JSON.parse(payload); if (o.error) status.textContent = '⚠️ ' + o.error; } catch (e) {}
+        });
+        return pump();
+      });
+    }
+    return pump();
+  }).catch(function (e) { status.textContent = '⚠️ ' + e.message; document.getElementById('gen-sheet').disabled = false; });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>动作诊断报告</title>
+  <style>
+    body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; color: #333; margin: 32px; }
+    h1 { font-size: 20px; text-align: center; margin-bottom: 4px; }
+    .sub { text-align: center; color: #888; font-size: 13px; margin-bottom: 20px; }
+    .meta { border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px; }
+    .meta b { display: inline-block; min-width: 4em; }
+    h2 { font-size: 15px; border-left: 4px solid #5b9bd5; padding-left: 8px; margin: 18px 0 8px; }
+    .result { white-space: pre-wrap; font-size: 14px; line-height: 1.7; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+    th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: center; }
+    th { background: #f2f2f2; }
+    .muted { color: #888; }
+    @media print { body { margin: 10mm; } }
+  </style>
+</head>
+<body>
+  <h1>{{ d.student }} 动作诊断报告</h1>
+  <div class="sub">{{ d.sport_type }}{% if d.technique_action %} · {{ d.technique_action }}{% endif %} · {{ d.created_at }}</div>
+  <div class="meta">
+    <b>学生：</b>{{ d.student }}<br>
+    <b>项目：</b>{{ d.sport_type or '—' }}<br>
+    <b>技术动作：</b>{{ d.technique_action or '未识别技术动作' }}<br>
+    <b>识别时间：</b>{{ d.created_at or '—' }}
+  </div>
+  <h2>动作诊断与纠错建议</h2>
+  <div class="result">{{ d.result or '暂无诊断结果' }}</div>
+  {% if d.metrics %}
+  <h2>关节参数</h2>
+  <table>
+    <thead><tr><th>关节</th><th>平均角度</th><th>标准</th><th>偏差</th><th>力矩</th></tr></thead>
+    <tbody>
+      {% for j, m in d.metrics.items() %}
+      <tr><td>{{ j }}</td><td>{{ m.avg_angle }}°</td><td>{{ m.std_angle }}°</td><td>{{ m.dev }}°</td><td>{{ m.avg_torque }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% elif d.error %}
+  <h2>关节参数</h2>
+  <div class="muted">{{ d.error }}</div>
+  {% endif %}
+</body>
+</html>

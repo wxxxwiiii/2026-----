@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}学生平时成绩 · 课堂智慧助手{% endblock %}
+{% block page_title %}学生平时成绩{% endblock %}
+{% block content %}
+
+{% if not classes %}
+<div class="card">
+  <p class="muted">还没有班级和学生。请先到「教师工作台 → 学生名册」录入班级和学生，再查看平时成绩。</p>
+</div>
+{% else %}
+
+<div class="card">
+  <div class="toolbar">
+    <div class="form-inline" style="flex-wrap:wrap">
+      <label style="margin:0">班级
+        <select name="class_id" onchange="location.href='{{ url_for('classroom.grades') }}?class_id='+this.value+'&year={{ year }}'" style="width:auto;margin-top:0">
+          {% for c in classes %}<option value="{{ c.id }}" {{ 'selected' if selected and c.id == selected.id }}>{{ c.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label style="margin:0">学年
+        <select name="year" onchange="location.href='{{ url_for('classroom.grades') }}?class_id={{ selected.id }}&year='+this.value" style="width:auto;margin-top:0">
+          <option value="">全部学年</option>
+          {% for y in year_options %}<option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <a class="btn btn-outline btn-sm" href="{{ url_for('classroom.grades_export', class_id=selected.id, year=year) }}">导出Excel</a>
+  </div>
+</div>
+
+<div class="card">
+  <h2>平时成绩（满分 100）</h2>
+  <form method="post" action="{{ url_for('classroom.weights_save') }}" class="form-inline" style="margin-bottom:10px">
+    <input type="hidden" name="class_id" value="{{ selected.id }}">
+    <label style="margin:0">考勤分 <input type="number" name="attendance_weight" value="{{ weights.attendance }}" min="0" max="100" style="width:80px;margin-top:0"></label>
+    <label style="margin:0">答题分 <input type="number" name="answer_weight" value="{{ weights.answer }}" min="0" max="100" style="width:80px;margin-top:0"></label>
+    <button type="submit" class="btn btn-outline btn-sm">保存权重</button>
+  </form>
+  {% if grades %}
+  <table>
+    <thead><tr><th>学号</th><th>姓名</th><th>考勤分</th><th>答题分</th><th>总分</th><th>评级</th></tr></thead>
+    <tbody>
+      {% for g in grades %}
+      <tr>
+        <td>{{ g.student_no or '—' }}</td>
+        <td>{{ g.name }}</td>
+        <td>{{ g.attendance_score }}</td>
+        <td>{{ g.answer_score }}</td>
+        <td class="{{ 'cell-danger' if g.total < 60 else '' }}"><b>{{ g.total }}</b></td>
+        <td><span class="tag {{ 'success' if g.rating in ('优秀','良好') else ('warning' if g.rating == '合格' else 'danger') }}">{{ g.rating }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">该班级暂无学生。</p>
+  {% endif %}
+</div>
+
+{% endif %}
+{% endblock %}

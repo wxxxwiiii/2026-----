@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% block title %}体质统计报表{% endblock %}
+{% block page_title %}体质统计报表{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="toolbar">
+    <h2 style="margin:0">体质统计报表</h2>
+    <a class="btn btn-outline btn-sm" href="{{ url_for('modules.fitness_report_pdf', class_id=cid, year=year, item=item) }}" target="_blank">导出班级体质PDF报告</a>
+  </div>
+  <form method="get" action="{{ url_for('modules.fitness_report') }}" class="form-inline" style="margin-top:8px">
+    <label style="margin:0">年级
+      <select name="grade" style="width:auto;margin-top:0">
+        <option value="">全部年级</option>
+        {% for g in grades %}<option value="{{ g }}" {{ 'selected' if g == grade }}>{{ g }}</option>{% endfor %}
+      </select>
+    </label>
+    <label style="margin:0">班级
+      <select name="class_id" style="width:auto;margin-top:0">
+        {% for c in classes %}<option value="{{ c.id }}" {{ 'selected' if c.id == cid }}>{{ c.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label style="margin:0">年份
+      <select name="year" style="width:auto;margin-top:0">
+        {% for y in year_options %}<option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}</option>{% endfor %}
+      </select>
+    </label>
+    <label style="margin:0">单项指标
+      <select name="item" style="width:auto;margin-top:0">
+        <option value="">（不选）</option>
+        {% for key, label in item_labels %}<option value="{{ key }}" {{ 'selected' if key == item }}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <button type="submit" class="btn btn-outline">筛选</button>
+    <a class="btn btn-outline btn-sm" href="{{ url_for('modules.fitness_report') }}">重置筛选</a>
+  </form>
+</div>
+
+<div class="grid" style="grid-template-columns:repeat(5,1fr)">
+  {% for g, label in [('优秀','优秀'),('良好','良好'),('合格','合格'),('不及格','不及格')] %}
+  <div class="card">
+    <h3>{{ label }}</h3>
+    <div class="stat-num">{{ stats.dist.get(g, 0) }}<span class="stat-unit">{{ ' / %d%%' % (stats.dist.get(g,0)/stats.n*100 if stats.n else 0)|round(1) }}</span></div>
+  </div>
+  {% endfor %}
+  <div class="card"><h3>班级总分平均分</h3><div class="stat-num">{{ stats.avg }}</div></div>
+</div>
+
+<div class="grid">
+  <div class="card"><div id="grade-chart" style="height:300px"></div></div>
+  <div class="card"><div id="trend-chart" style="height:300px"></div></div>
+</div>
+{% if item %}<div class="card"><div id="item-chart" style="height:280px"></div></div>{% endif %}
+
+<div class="card">
+  <div class="toolbar">
+    <h2 style="margin:0">学生成绩表</h2>
+    <div class="form-inline">
+      <input type="text" id="tb-search" placeholder="姓名 / 学号搜索" style="width:160px">
+      <a class="btn btn-outline btn-sm" href="{{ url_for('modules.fitness_export_excel', class_id=cid, year=year) }}">导出全表Excel</a>
+    </div>
+  </div>
+  {% if students %}
+  <table id="score-table">
+    <thead>
+      <tr>
+        <th>学号</th><th>姓名</th><th>性别</th>
+        <th>肺活量(分)</th><th>50米(分)</th><th>立定跳远(分)</th><th>力量(分)</th><th>耐力(分)</th>
+        <th class="sortable" data-sort="total">总分 ▾</th><th>等级</th><th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in students %}
+      {% set r = records.get(s.id) %}
+      <tr data-name="{{ s.name }}" data-no="{{ s.student_no or '' }}" data-total="{{ r.total_score if r and r.total_score is not none else -1 }}">
+        <td>{{ s.student_no or '—' }}</td>
+        <td>{{ s.name }}</td>
+        <td>{{ s.gender or '—' }}</td>
+        {% if r %}
+        <td>{{ r.vital_capacity or '—' }}（{{ r.vital_score }}）</td>
+        <td>{{ r.run_50m or '—' }}（{{ r.run50_score }}）</td>
+        <td>{{ r.standing_long_jump or '—' }}（{{ r.jump_score }}）</td>
+        <td>{{ (r.pull_up if s.gender == '男' else r.sit_up) or '—' }}（{{ r.strength_score }}）</td>
+        <td>{{ (r.run_1000m if s.gender == '男' else r.run_800m) or '—' }}（{{ r.endurance_score }}）</td>
+        <td class="{{ 'cell-danger' if r.total_score < 60 else ('cell-success' if r.total_score >= 90 else '') }}">{{ r.total_score }}</td>
+        <td><span class="tag {{ 'success' if r.grade in ('优秀','良好') else ('warning' if r.grade == '及格' else 'danger') }}">{{ r.grade }}</span></td>
+        <td>
+          <button type="button" class="btn btn-outline btn-sm js-detail" data-student="{{ s.name }}"
+            data-detail="{{ r.bmi }},{{ r.bmi_score }},{{ r.vital_capacity }},{{ r.vital_score }},{{ r.run_50m }},{{ r.run50_score }},{{ r.sit_and_reach }},{{ r.sitreach_score }},{{ r.standing_long_jump }},{{ r.jump_score }},{{ (r.pull_up if s.gender=='男' else r.sit_up) or '' }},{{ r.strength_score }},{{ (r.run_1000m if s.gender=='男' else r.run_800m) or '' }},{{ r.endurance_score }},{{ r.total_score }},{{ r.grade }}">详情</button>
+          <a class="btn btn-outline btn-sm" href="{{ url_for('modules.fitness_entry', class_id=cid, year=year) }}">编辑</a>
+        </td>
+        {% else %}
+        <td colspan="7" class="muted">未录入</td>
+        <td></td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="form-inline" style="margin-top:10px">
+    <span class="muted" id="tb-info"></span>
+    <span style="flex:1"></span>
+    <button type="button" class="btn btn-outline btn-sm" id="tb-prev">‹ 上一页</button>
+    <span class="muted" id="tb-page">1</span>
+    <button type="button" class="btn btn-outline btn-sm" id="tb-next">下一页 ›</button>
+  </div>
+  {% else %}
+  <p class="muted">暂无数据，请先录入或导入体测成绩。</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>批量导入</h2>
+  <div class="form-inline" style="margin-bottom:6px">
+    <a class="btn btn-outline btn-sm" href="{{ url_for('modules.fitness_template') }}">下载标准导入模板</a>
+  </div>
+  <form method="post" action="{{ url_for('modules.fitness_import') }}" enctype="multipart/form-data" class="form-inline">
+    <input type="hidden" name="class_id" value="{{ cid }}">
+    <input type="hidden" name="year" value="{{ year }}">
+    <input type="file" name="file" accept=".xlsx,.xls,.csv" required>
+    <button type="submit" class="btn btn-outline">导入文件</button>
+  </form>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/echarts.min.js') }}"></script>
+<script>
+// 等级分布环形饼图
+echarts.init(document.getElementById('grade-chart')).setOption({
+  title: { text: '等级分布', left: 'center', textStyle: { fontSize: 14 } },
+  tooltip: { trigger: 'item' }, legend: { bottom: 0 },
+  series: [{ type: 'pie', radius: ['40%', '65%'],
+    data: [
+      { value: {{ stats.dist.get('优秀',0) }}, name: '优秀', itemStyle: { color: '#4a7c33' } },
+      { value: {{ stats.dist.get('良好',0) }}, name: '良好', itemStyle: { color: '#6fa8dc' } },
+      { value: {{ stats.dist.get('合格',0) }}, name: '合格', itemStyle: { color: '#b07a2a' } },
+      { value: {{ stats.dist.get('不及格',0) }}, name: '不及格', itemStyle: { color: '#b03a34' } }
+    ] }]
+});
+// 历年趋势折线图
+var trend = {{ year_trend|tojson }};
+echarts.init(document.getElementById('trend-chart')).setOption({
+  title: { text: '历年平均分趋势', left: 'center', textStyle: { fontSize: 14 } },
+  tooltip: { trigger: 'axis' },
+  grid: { left: 40, right: 20, bottom: 30, top: 40 },
+  xAxis: { type: 'category', data: trend.map(function (t) { return t[0]; }) },
+  yAxis: { type: 'value', min: 0, max: 100 },
+  series: [{ type: 'line', smooth: true, data: trend.map(function (t) { return t[1]; }), itemStyle: { color: '#6fa8dc' }, areaStyle: { opacity: .15 } }]
+});
+{% if item %}
+echarts.init(document.getElementById('item-chart')).setOption({
+  title: { text: '单项成绩分布', left: 'center', textStyle: { fontSize: 14 } },
+  tooltip: { trigger: 'axis' },
+  grid: { left: 40, right: 20, bottom: 30, top: 40 },
+  xAxis: { type: 'category', data: ['<60', '60-69', '70-79', '80-89', '≥90'] },
+  yAxis: { type: 'value', minInterval: 1 },
+  series: [{ type: 'bar', barWidth: '55%', itemStyle: { color: '#6fa8dc' },
+    data: [{{ item_dist['<60'] }}, {{ item_dist['60-69'] }}, {{ item_dist['70-79'] }}, {{ item_dist['80-89'] }}, {{ item_dist['≥90'] }}] }]
+});
+{% endif %}
+
+// 表格：搜索、排序、分页
+var PAGE_SIZE = 10, curPage = 1, sortAsc = false;
+var rows = Array.prototype.slice.call(document.querySelectorAll('#score-table tbody tr'));
+function renderTable() {
+  var kw = (document.getElementById('tb-search').value || '').trim().toLowerCase();
+  var filtered = rows.filter(function (r) {
+    if (!kw) return true;
+    return (r.getAttribute('data-name') || '').toLowerCase().indexOf(kw) >= 0 || (r.getAttribute('data-no') || '').indexOf(kw) >= 0;
+  });
+  filtered.sort(function (a, b) {
+    var ta = parseFloat(a.getAttribute('data-total')), tb = parseFloat(b.getAttribute('data-total'));
+    return sortAsc ? ta - tb : tb - ta;
+  });
+  var totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  if (curPage > totalPages) curPage = totalPages;
+  var start = (curPage - 1) * PAGE_SIZE;
+  rows.forEach(function (r) { r.style.display = 'none'; });
+  filtered.slice(start, start + PAGE_SIZE).forEach(function (r) { r.style.display = ''; });
+  document.getElementById('tb-page').textContent = curPage + ' / ' + totalPages;
+  document.getElementById('tb-info').textContent = '共 ' + filtered.length + ' 条';
+}
+document.getElementById('tb-search').addEventListener('input', function () { curPage = 1; renderTable(); });
+document.getElementById('tb-prev').addEventListener('click', function () { if (curPage > 1) { curPage--; renderTable(); } });
+document.getElementById('tb-next').addEventListener('click', function () { curPage++; renderTable(); });
+document.querySelector('.sortable').addEventListener('click', function () { sortAsc = !sortAsc; renderTable(); });
+document.querySelectorAll('.js-detail').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var d = (btn.getAttribute('data-detail') || '').split(',');
+    var box = appModal().querySelector('.modal-box');
+    box.style.width = '460px';
+    box.innerHTML = '<h3>' + esc(btn.getAttribute('data-student')) + ' 体测详情</h3>' +
+      '<div class="muted" style="font-size:13px;line-height:1.9">' +
+      'BMI：' + (d[0] || '—') + '（' + (d[1] || '—') + '分）<br>' +
+      '肺活量：' + (d[2] || '—') + '（' + (d[3] || '—') + '分）<br>' +
+      '50米：' + (d[4] || '—') + '（' + (d[5] || '—') + '分）<br>' +
+      '坐位体前屈：' + (d[6] || '—') + '（' + (d[7] || '—') + '分）<br>' +
+      '立定跳远：' + (d[8] || '—') + '（' + (d[9] || '—') + '分）<br>' +
+      '力量：' + (d[10] || '—') + '（' + (d[11] || '—') + '分）<br>' +
+      '耐力跑：' + (d[12] || '—') + '（' + (d[13] || '—') + '分）<br>' +
+      '<b>总分：' + (d[14] || '—') + '（' + (d[15] || '—') + '）</b></div>' +
+      '<div class="modal-actions"><button class="btn btn-primary" onclick="appCloseModal()">关闭</button></div>';
+    appModal().style.display = 'flex';
+  });
+});
+renderTable();
+</script>
+{% endblock %}

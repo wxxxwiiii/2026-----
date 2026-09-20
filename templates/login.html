@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>登录 - 体育教学智能体</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="login-body">
+  <div class="login-card">
+    <h1>体育教学智能体</h1>
+    <p class="login-sub">高校体育教师 AI 教学辅助平台</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, msg in messages %}
+        <div class="flash {{ category }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    <form method="post">
+      <label>用户名
+        <input type="text" name="username" required autofocus>
+      </label>
+      <label>密码
+        <input type="password" name="password" required>
+      </label>
+      <button type="submit" class="btn btn-primary btn-block">登 录</button>
+    </form>
+    <p class="login-hint">首次使用默认账号：admin / admin123</p>
+  </div>
+</body>
+</html>

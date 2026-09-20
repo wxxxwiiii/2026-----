@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}教师工作台{% endblock %}
+{% block page_title %}教师工作台{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>快捷功能</h2>
+  <div class="quick-grid">
+    <a class="quick-entry" href="{{ url_for('workbench.students') }}">学生名册</a>
+    <a class="quick-entry" href="{{ url_for('workbench.progress') }}">教学进度</a>
+    <a class="quick-entry" href="{{ url_for('workbench.reflections', kind='教学反思') }}">教学反思</a>
+    <a class="quick-entry" href="{{ url_for('workbench.reflections', kind='听课记录') }}">听课记录</a>
+    <a class="quick-entry" href="{{ url_for('workbench.todos') }}">教师待办</a>
+  </div>
+</div>
+
+<div class="card">
+  <h2>课表</h2>
+  {% with size='large' %}{% include '_schedule.html' %}{% endwith %}
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="card-head">
+      <h2>待办</h2>
+      <button class="head-add js-head-add-todo" title="添加待办">＋</button>
+    </div>
+    <div id="todo-list"></div>
+  </div>
+  <div class="card">
+    <h2>日历</h2>
+    <div class="toolbar">
+      <a class="btn btn-sm btn-outline" href="{{ url_for('workbench.index', year=prev[0], month=prev[1]) }}">‹ 上月</a>
+      <b>{{ year }} 年 {{ month }} 月</b>
+      <a class="btn btn-sm btn-outline" href="{{ url_for('workbench.index', year=next_[0], month=next_[1]) }}">下月 ›</a>
+    </div>
+    <div class="cal-grid">
+      {% for d in ['一', '二', '三', '四', '五', '六', '日'] %}<div class="cal-head">{{ d }}</div>{% endfor %}
+      {% for week in weeks %}
+        {% for day in week %}
+        <div class="cal-cell {{ 'today' if day == today }} {{ 'other' if day.month != month }}">{{ day.day }}</div>
+        {% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <h2>赛事倒计时</h2>
+      <button class="head-add js-head-add-event" title="添加新事件">＋</button>
+    </div>
+    <div id="match-events"></div>
+  </div>
+</div>
+{% endblock %}

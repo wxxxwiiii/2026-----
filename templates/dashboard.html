@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}首页{% endblock %}
+{% block page_title %}首页{% endblock %}
+{% block content %}
+<div class="grid-3" style="margin-bottom:16px">
+  <div class="card stat-card">
+    <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></div>
+    <div><div class="stat-value">{{ stats.classes }}</div><div class="stat-label">行政班级</div></div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1"/><path d="M16 4.2a3 3 0 0 1 0 5.6"/><path d="M19 14.8a5 5 0 0 1 2 4.2v1"/></svg></div>
+    <div><div class="stat-value">{{ stats.students }}</div><div class="stat-label">学生总数</div></div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></svg></div>
+    <div><div class="stat-value">{{ stats.schedule }}</div><div class="stat-label">课表条目</div></div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg></div>
+    <div><div class="stat-value">{{ stats.todos }}</div><div class="stat-label">待办事项</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>本周课表</h2>
+  {% with size='small' %}{% include '_schedule.html' %}{% endwith %}
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h2>近期任务</h2>
+    {% if recent_todos %}
+    <ul class="plain-list">
+      {% for t in recent_todos %}<li>{{ t.title }} <span class="muted">（{{ t.category or '未分类' }}）</span></li>{% endfor %}
+    </ul>
+    {% else %}<p class="muted">暂无待办事项。</p>{% endif %}
+  </div>
+  <div class="card">
+    <h2>快捷跳转</h2>
+    <div class="quick-grid">
+      <a class="quick-entry" href="{{ url_for('workbench.index') }}">教师工作台</a>
+      <a class="quick-entry" href="{{ url_for('classroom.attendance') }}">课堂助手</a>
+      <a class="quick-entry" href="{{ url_for('lesson_prep.index') }}">智能备课台</a>
+      <a class="quick-entry" href="{{ url_for('modules.fitness_report') }}">体质健康</a>
+      <a class="quick-entry" href="{{ url_for('modules.action_upload') }}">动作识别</a>
+      <a class="quick-entry" href="{{ url_for('auth.settings') }}">系统设置</a>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>通知公告</h2>
+  <p class="muted">暂无公告。消息通知功能将在后续阶段上线。</p>
+</div>
+{% endblock %}

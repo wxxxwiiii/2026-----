@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>班级常见错误汇总</title>
+  <style>
+    body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; color: #333; margin: 32px; }
+    h1 { font-size: 22px; text-align: center; margin-bottom: 4px; }
+    .sub { text-align: center; color: #888; font-size: 13px; margin-bottom: 20px; }
+    .overview { display: flex; gap: 16px; justify-content: center; margin-bottom: 24px; flex-wrap: wrap; }
+    .stat { border: 1px solid #ddd; border-radius: 8px; padding: 12px 20px; text-align: center; min-width: 100px; }
+    .stat .n { font-size: 22px; font-weight: 700; }
+    .stat .l { font-size: 12px; color: #888; }
+    .group { border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; page-break-inside: avoid; }
+    .group h2 { font-size: 16px; margin: 0 0 10px; }
+    .meta { font-size: 14px; color: #555; margin: 5px 0; line-height: 1.7; }
+    .label { font-weight: 700; color: #333; }
+    .students { color: #3f7fb5; }
+    @media print { body { margin: 10mm; } }
+  </style>
+</head>
+<body>
+  <h1>{{ title }}</h1>
+  <div class="sub">{{ subtitle }}</div>
+  <div class="overview">
+    <div class="stat"><div class="n">{{ total_students }}</div><div class="l">分析总人数</div></div>
+    <div class="stat"><div class="n">{{ groups|length }}</div><div class="l">错误类型</div></div>
+    <div class="stat"><div class="n">{{ involved }}</div><div class="l">累计涉及人次</div></div>
+  </div>
+  {% for g in groups %}
+  <div class="group">
+    <h2>{{ loop.index }}. {{ g.error_name }}</h2>
+    <div class="meta"><span class="label">出现人数：</span>{{ g.count }} 人</div>
+    <div class="meta"><span class="label">涉及学生：</span><span class="students">{{ g.students|join('、') }}</span></div>
+    {% if g.techniques %}<div class="meta"><span class="label">涉及技术动作：</span>{{ g.techniques|join('、') }}</div>{% endif %}
+    <div class="meta"><span class="label">统一错误描述：</span>{{ g.description }}</div>
+    <div class="meta"><span class="label">统一纠正建议：</span>{{ g.suggestion }}</div>
+  </div>
+  {% endfor %}
+</body>
+</html>

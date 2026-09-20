@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% block page_back %}
+<a class="back-btn" href="{{ url_for('lesson_prep.index') }}">← 返回</a>
+{% endblock %}
+{% block title %}AI 智能备课中心{% endblock %}
+{% block page_title %}AI 智能备课中心{% endblock %}
+{% block content %}
+
+<div class="third-party-notice" id="credentialless-hint" style="display:none">当前浏览器不支持匿名内嵌，会保留浏览器登录状态。</div>
+
+<div class="ai-tabs">
+  <button class="ai-tab active" data-tab="self">备课AI汇总</button>
+  <button class="ai-tab" data-tab="doubao">豆包</button>
+  <button class="ai-tab" data-tab="ernie">文心一言</button>
+</div>
+
+<div class="ai-tab-panel active" id="panel-self">
+  <div class="card ai-workspace">
+    <div class="ai-toolbar">
+      <select id="ai-provider" class="ai-select"></select>
+      <select id="ai-model" class="ai-select"></select>
+      <span style="flex:1"></span>
+      <button id="ai-new" class="btn btn-outline btn-sm">新建对话</button>
+      <button id="ai-clear" class="btn btn-outline btn-sm">清空对话</button>
+    </div>
+    <div class="ai-quick-actions">
+      <input type="text" id="ai-course" placeholder="课程主题（如：篮球 / 立定跳远）" style="flex:1;min-width:180px;margin:0">
+      <button class="btn btn-outline btn-sm js-rag" data-mode="generate">生成教案</button>
+      <button class="btn btn-outline btn-sm js-rag" data-mode="revise">修订教案</button>
+      <button class="btn btn-outline btn-sm js-rag" data-mode="activity">设计教学活动</button>
+    </div>
+    <p class="muted">说明：教材库读取、生成教案自动回填编辑器功能将在后续步骤上线。</p>
+    <div class="ai-messages" id="ai-messages"></div>
+    <div class="ai-input-row">
+      <textarea id="ai-input" rows="3" placeholder="输入你的备课需求，或点击上方快捷按钮"></textarea>
+      <button class="btn btn-primary" id="ai-send">发送</button>
+    </div>
+  </div>
+</div>
+
+<div class="ai-tab-panel" id="panel-doubao">
+  <div class="third-party-notice">⚠️ 第三方AI网页，为全新空白对话；对话内容不会同步备课台，生成内容无法自动存入教案/成果库。若下方页面无法显示（该网站禁止内嵌），请点击【新窗口打开】。</div>
+  <div class="third-party-toolbar"><button class="btn btn-outline btn-sm js-open" data-url="https://www.doubao.com/chat/">新窗口打开</button></div>
+  <iframe class="ai-iframe" credentialless data-src="https://www.doubao.com/chat/" style="width:100%;min-height:800px;"></iframe>
+</div>
+
+<div class="ai-tab-panel" id="panel-ernie">
+  <div class="third-party-notice">⚠️ 第三方AI网页，为全新空白对话；对话内容不会同步备课台，生成内容无法自动存入教案/成果库。若下方页面无法显示（该网站禁止内嵌），请点击【新窗口打开】。</div>
+  <div class="third-party-toolbar"><button class="btn btn-outline btn-sm js-open" data-url="https://yiyan.baidu.com/">新窗口打开</button></div>
+  <iframe class="ai-iframe" credentialless data-src="https://yiyan.baidu.com/" style="width:100%;min-height:800px;"></iframe>
+</div>
+
+<script>
+if (!('credentialless' in document.createElement('iframe'))) {
+  var ch = document.getElementById('credentialless-hint');
+  if (ch) ch.style.display = 'block';
+}
+
+var PROVIDERS = {{ providers|tojson }};
+var providerSel = document.getElementById('ai-provider');
+var modelSel = document.getElementById('ai-model');
+AI.initModelSelectors(providerSel, modelSel, PROVIDERS);
+
+var messagesBox = document.getElementById('ai-messages');
+
+// 标签页切换
+document.querySelectorAll('.ai-tab').forEach(function (tab) {
+  tab.addEventListener('click', function () {
+    document.querySelectorAll('.ai-tab').forEach(function (t) { t.classList.remove('active'); });
+    document.querySelectorAll('.ai-tab-panel').forEach(function (p) { p.classList.remove('active'); });
+    tab.classList.add('active');
+    var panel = document.getElementById('panel-' + tab.getAttribute('data-tab'));
+    panel.classList.add('active');
+    panel.querySelectorAll('iframe[data-src]').forEach(function (f) {
+      if (!f.getAttribute('src')) f.setAttribute('src', f.getAttribute('data-src'));
+    });
+  });
+});
+
+// 新窗口打开
+document.querySelectorAll('.js-open').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    window.open(btn.getAttribute('data-url'), '_blank');
+  });
+});
+
+// 对话
+function addMsg(role, text) {
+  var div = document.createElement('div');
+  div.className = 'chat-msg ' + role;
+  div.textContent = text;
+  messagesBox.appendChild(div);
+  messagesBox.scrollTop = messagesBox.scrollHeight;
+  return div;
+}
+function renderHistory() {
+  messagesBox.innerHTML = '';
+  AI.getConversation().forEach(function (m) {
+    addMsg(m.role === 'user' ? 'user' : 'assistant', m.content);
+  });
+}
+function send() {
+  var input = document.getElementById('ai-input');
+  var text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addMsg('user', text);
+  var asst = addMsg('assistant', '');
+  AI.send(text, function (delta, full) {
+    asst.textContent = full;
+    messagesBox.scrollTop = messagesBox.scrollHeight;
+  }).catch(function (e) {
+    asst.textContent = '⚠️ ' + e.message;
+  });
+}
+document.getElementById('ai-send').addEventListener('click', send);
+document.getElementById('ai-input').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+});
+document.getElementById('ai-new').addEventListener('click', function () {
+  AI.clearConversation(); renderHistory();
+});
+document.getElementById('ai-clear').addEventListener('click', function () {
+  AI.clearConversation(); renderHistory();
+});
+function ragLessonPlan(mode) {
+  var course = document.getElementById('ai-course').value.trim();
+  var input = document.getElementById('ai-input');
+  var userInput = input.value.trim();
+  var state = AI.getState();
+  var label = { generate: '生成教案', revise: '修订教案', activity: '设计教学活动' }[mode];
+  var taskDesc = label + (course ? '：' + course : '') + (userInput ? '（' + userInput + '）' : '');
+  addMsg('user', taskDesc);
+  input.value = '';
+  var asst = addMsg('assistant', '');
+  fetch('/api/rag/lesson-plan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: mode, provider: state.provider, model: state.model, course_info: course, user_input: userInput, enable_skill: true })
+  }).then(function (resp) {
+    if (!resp.ok) { asst.textContent = '请求失败（' + resp.status + '）'; return; }
+    var reader = resp.body.getReader();
+    var decoder = new TextDecoder();
+    var buf = '', full = '';
+    function pump() {
+      return reader.read().then(function (r) {
+        if (r.done) return;
+        buf += decoder.decode(r.value, { stream: true });
+        var lines = buf.split('\n'); buf = lines.pop();
+        lines.forEach(function (line) {
+          line = line.trim();
+          if (line.indexOf('data: ') !== 0) return;
+          var payload = line.slice(6);
+          if (payload === '[DONE]') return;
+          try {
+            var o = JSON.parse(payload);
+            if (o.delta) { full += o.delta; asst.textContent = full; }
+            if (o.done) { asst.textContent = full + '\n\n（已保存到教案库，教案ID：' + o.lesson_plan_id + '）'; }
+            if (o.error) { asst.textContent = '⚠️ ' + o.error; }
+          } catch (e) {}
+        });
+        return pump();
+      });
+    }
+    return pump();
+  }).catch(function (e) { asst.textContent = '⚠️ ' + e.message; });
+}
+document.querySelectorAll('.js-rag').forEach(function (btn) {
+  btn.addEventListener('click', function () { ragLessonPlan(btn.getAttribute('data-mode')); });
+});
+
+renderHistory();
+</script>
+{% endblock %}

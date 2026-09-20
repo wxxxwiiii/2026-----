@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block page_back %}
+<a class="back-btn" href="{{ url_for('workbench.index') }}">← 返回</a>
+{% endblock %}
+{% block title %}教师待办{% endblock %}
+{% block page_title %}教师待办{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>添加待办</h2>
+  <form method="post" action="{{ url_for('workbench.todo_add') }}" class="form-grid">
+    <label>待办内容 <input type="text" name="title" required></label>
+    <label>分类 <select name="category">{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select></label>
+    <label>截止日期 <input type="date" name="due_date"></label>
+    <label>备注 <input type="text" name="note"></label>
+    <div style="display:flex;align-items:flex-end"><button type="submit" class="btn btn-primary">添加</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>待办列表</h2>
+  {% if items %}
+  <table>
+    <thead><tr><th>完成</th><th>待办</th><th>分类</th><th>截止</th><th>备注</th><th>操作</th></tr></thead>
+    <tbody>
+      {% for t in items %}
+      <tr>
+        <td>
+          <form method="post" action="{{ url_for('workbench.todo_toggle', tid=t.id) }}" style="display:inline">
+            <button type="submit" class="btn btn-sm {{ 'btn-primary' if t.done else 'btn-outline' }}">{{ '已完成' if t.done else '未完成' }}</button>
+          </form>
+        </td>
+        <td style="{{ 'text-decoration:line-through;color:#b6ac99' if t.done }}">{{ t.title }}</td>
+        <td>{{ t.category or '—' }}</td>
+        <td>{{ t.due_date or '—' }}</td>
+        <td>{{ t.note or '—' }}</td>
+        <td>
+          <details>
+            <summary>编辑</summary>
+            <form method="post" action="{{ url_for('workbench.todo_edit', tid=t.id) }}" class="form-grid">
+              <label>内容 <input type="text" name="title" value="{{ t.title }}" required></label>
+              <label>分类 <select name="category">{% for c in categories %}<option {{ 'selected' if t.category == c }}>{{ c }}</option>{% endfor %}</select></label>
+              <label>截止 <input type="date" name="due_date" value="{{ t.due_date or '' }}"></label>
+              <label>备注 <input type="text" name="note" value="{{ t.note or '' }}"></label>
+              <div style="display:flex;align-items:flex-end"><button type="submit" class="btn btn-primary btn-sm">保存</button></div>
+            </form>
+          </details>
+          <form method="post" action="{{ url_for('workbench.todo_delete', tid=t.id) }}" style="display:inline" onsubmit="return confirm('确定删除吗？')">
+            <button type="submit" class="btn btn-danger btn-sm">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">暂无待办。</p>
+  {% endif %}
+</div>
+{% endblock %}

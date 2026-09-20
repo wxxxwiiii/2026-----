@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>动作诊断报告汇总</title>
+  <style>
+    body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; color: #333; margin: 32px; }
+    h1 { font-size: 20px; text-align: center; margin-bottom: 4px; }
+    .sub { text-align: center; color: #888; font-size: 13px; margin-bottom: 20px; }
+    .report { border: 1px solid #ddd; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; page-break-inside: avoid; }
+    .report h2 { font-size: 16px; margin: 0 0 8px; }
+    .meta { font-size: 13px; color: #555; margin-bottom: 8px; }
+    .result { white-space: pre-wrap; font-size: 14px; line-height: 1.7; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+    th, td { border: 1px solid #ccc; padding: 5px 7px; text-align: center; }
+    th { background: #f2f2f2; }
+    @media print { body { margin: 10mm; } .report { page-break-after: always; } }
+  </style>
+</head>
+<body>
+  <h1>动作诊断报告汇总</h1>
+  <div class="sub">共 {{ records|length }} 份报告</div>
+  {% for d in records %}
+  <div class="report">
+    <h2>{{ d.student }} · {{ d.sport_type }}{% if d.technique_action %} · {{ d.technique_action }}{% endif %}</h2>
+    <div class="meta">识别时间：{{ d.created_at or '—' }}</div>
+    <div class="result">{{ d.result or '暂无诊断结果' }}</div>
+    {% if d.metrics %}
+    <table>
+      <thead><tr><th>关节</th><th>平均角度</th><th>标准</th><th>偏差</th><th>力矩</th></tr></thead>
+      <tbody>
+        {% for j, m in d.metrics.items() %}
+        <tr><td>{{ j }}</td><td>{{ m.avg_angle }}°</td><td>{{ m.std_angle }}°</td><td>{{ m.dev }}°</td><td>{{ m.avg_torque }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% elif d.error %}
+    <div class="meta">{{ d.error }}</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>专项训练方案</title>
+  <style>
+    body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; color: #333; margin: 32px; }
+    h1 { font-size: 22px; text-align: center; margin-bottom: 4px; }
+    .sub { text-align: center; color: #888; font-size: 13px; margin-bottom: 20px; }
+    h2 { font-size: 16px; border-left: 4px solid #5b9bd5; padding-left: 8px; margin: 20px 0 8px; }
+    p, li { font-size: 14px; line-height: 1.7; }
+    .section { white-space: pre-wrap; }
+    .practice { border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; page-break-inside: avoid; }
+    .practice .name { font-weight: 700; }
+    @media print { body { margin: 10mm; } }
+  </style>
+</head>
+<body>
+  <h1>{{ title }}</h1>
+  {% if subtitle %}<div class="sub">{{ subtitle }}</div>{% endif %}
+  {% if plan.title %}<div class="sub">{{ plan.title }}</div>{% endif %}
+
+  <h2>训练目标</h2>
+  <div class="section">{{ plan.goals or '—' }}</div>
+
+  <h2>针对性练习</h2>
+  {% for pr in plan.practices or [] %}
+  <div class="practice">
+    <div class="name">{{ loop.index }}. {{ pr.error_name }}</div>
+    <div class="section">{{ pr.practice or '—' }}</div>
+  </div>
+  {% endfor %}
+
+  <h2>课时安排建议</h2>
+  <div class="section">{{ plan.schedule or '—' }}</div>
+
+  <h2>练习要点</h2>
+  <div class="section">{{ plan.points or '—' }}</div>
+</body>
+</html>

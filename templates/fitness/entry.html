@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}体测评分录入{% endblock %}
+{% block page_title %}体测评分录入{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="toolbar">
+    <h2 style="margin:0">体测评分录入</h2>
+    <form method="get" action="{{ url_for('modules.fitness_entry') }}" class="form-inline" style="margin:0">
+      <label style="margin:0">班级
+        <select name="class_id" style="width:auto;margin-top:0">
+          {% for c in classes %}<option value="{{ c.id }}" {{ 'selected' if c.id == cid }}>{{ c.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label style="margin:0">年份
+        <select name="year" style="width:auto;margin-top:0">
+          {% for y in year_options %}<option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}</option>{% endfor %}
+        </select>
+      </label>
+      <button type="submit" class="btn btn-outline">确定</button>
+    </form>
+  </div>
+
+  {% if students %}
+  <form method="post" action="{{ url_for('modules.fitness_add') }}" class="form-grid">
+    <input type="hidden" name="year" value="{{ year }}">
+    <label>学生
+      <select name="student_id">
+        {% for s in students %}<option value="{{ s.id }}">{{ s.name }}（{{ s.student_no or s.id }}）</option>{% endfor %}
+      </select>
+    </label>
+    <label>体重指数(BMI) <input type="number" name="bmi" step="0.1" min="0"></label>
+    <label>肺活量(ml) <input type="number" name="vital_capacity" step="1" min="0"></label>
+    <label>50米(s) <input type="number" name="run_50m" step="0.1" min="0"></label>
+    <label>坐位体前屈(cm) <input type="number" name="sit_and_reach" step="0.1"></label>
+    <label>立定跳远(cm) <input type="number" name="standing_long_jump" step="1" min="0"></label>
+    <label>力量(个，男引体/女仰卧) <input type="number" name="strength" step="1" min="0"></label>
+    <label>耐力跑(分.秒，男1000米/女800米，如4.30=4分30秒) <input type="text" name="endurance" placeholder="如 4.30"></label>
+    <div style="display:flex;align-items:flex-end"><button type="submit" class="btn btn-primary">保存并评分</button></div>
+  </form>
+  {% else %}
+  <p class="muted">该班级暂无学生。请先到「教师工作台 → 学生名册」录入学生。</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>批量导入</h2>
+  <div class="form-inline" style="margin-bottom:6px">
+    <a class="btn btn-outline btn-sm" href="{{ url_for('modules.fitness_template') }}">下载标准导入模板</a>
+  </div>
+  <p class="muted" style="margin:4px 0 8px">表头：学号、姓名、性别、年级、学院、班级、体重指数(BMI)、肺活量(ml)、坐位体前屈(cm)、50米(秒)、立定跳远(cm)、一分钟仰卧起坐(女)/引体向上(男)(次)、800米跑(女)/1000米跑(男)。按学号匹配本班学生，性别仅允许男/女；耐力跑按「分.秒」填写，如 4.30 表示4分30秒。</p>
+  <form method="post" action="{{ url_for('modules.fitness_import') }}" enctype="multipart/form-data" class="form-inline">
+    <input type="hidden" name="class_id" value="{{ cid }}">
+    <input type="hidden" name="year" value="{{ year }}">
+    <input type="file" name="file" accept=".xlsx,.xls,.csv" required>
+    <button type="submit" class="btn btn-outline">导入文件</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}体育教学智能体{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="{{ url_for('static', filename='js/ai.js') }}"></script>
+</head>
+<body data-username="{{ username }}">
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">体</div>
+        <div class="brand-name">体育教学智能体</div>
+      </div>
+      <nav class="nav">
+        <a href="{{ url_for('home.index') }}" class="nav-item {{ 'active' if active == 'home' }}">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+          首页
+        </a>
+
+        <div class="nav-group">
+          <div class="nav-group-toggle">教学管理
+            <svg class="chev" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="nav-group-items">
+            <a href="{{ url_for('workbench.index') }}" class="nav-item {{ 'active' if active == 'workbench' }}">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              教师工作台
+            </a>
+          </div>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-label">课堂智慧助手</div>
+          <div class="nav-group-items">
+            <a href="{{ url_for('classroom.attendance') }}" class="nav-item {{ 'active' if active == 'classroom_attendance' }}">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              学生考勤＋随机抽提问
+            </a>
+            <a href="{{ url_for('classroom.grades') }}" class="nav-item {{ 'active' if active == 'classroom_grades' }}">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+              学生平时成绩
+            </a>
+          </div>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-label">智能备课台</div>
+          <div class="nav-group-items">
+            <a href="{{ url_for('lesson_prep.resources') }}" class="nav-item {{ 'active' if active == 'resources' }}">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 5v16"/></svg>
+              教材资源库
+            </a>
+            <a href="{{ url_for('lesson_prep.ai_center') }}" class="nav-item {{ 'active' if active == 'ai_center' }}">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>
+              AI智能备课中心
+            </a>
+            <a href="{{ url_for('lesson_prep.plans') }}" class="nav-item {{ 'active' if active == 'plans' }}">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+              教案编辑与版本管理
+            </a>
+            <a href="{{ url_for('lesson_prep.layered') }}" class="nav-item {{ 'active' if active == 'layered' }}">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg>
+              学情分层作业中心
+            </a>
+            <a href="{{ url_for('lesson_prep.outcomes') }}" class="nav-item {{ 'active' if active == 'outcomes' }}">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 13l2 2 4-4"/></svg>
+              备课成果管理
+            </a>
+          </div>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-toggle">数据分析
+            <svg class="chev" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="nav-group-items">
+            <div class="nav-sub">
+              <a href="{{ url_for('modules.fitness_report') }}" class="nav-item {{ 'active' if active and active.startswith('fitness') }}">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>
+                体质健康分析
+              </a>
+              <div class="nav-sub-items">
+                <a href="{{ url_for('modules.fitness_entry') }}" class="nav-item nav-sub-item {{ 'active' if active == 'fitness_entry' }}">
+                  <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+                  体测评分录入
+                </a>
+                <a href="{{ url_for('modules.fitness_query') }}" class="nav-item nav-sub-item {{ 'active' if active == 'fitness_query' }}">
+                  <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+                  体质数据查询
+                </a>
+                <a href="{{ url_for('modules.fitness_report') }}" class="nav-item nav-sub-item {{ 'active' if active == 'fitness_report' }}">
+                  <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+                  体质统计报表
+                </a>
+                <a href="{{ url_for('modules.fitness_warnings') }}" class="nav-item nav-sub-item {{ 'active' if active == 'fitness_warnings' }}">
+                  <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l9 17H3z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                  体质预警名单
+                </a>
+                <a href="{{ url_for('modules.fitness_export') }}" class="nav-item nav-sub-item {{ 'active' if active == 'fitness_export' }}">
+                  <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></svg>
+                  体质报告导出
+                </a>
+              </div>
+            </div>
+            <div class="nav-sub">
+              <a href="{{ url_for('modules.action_upload') }}" class="nav-item {{ 'active' if active and active.startswith('action') }}">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="6" width="13" height="12" rx="2"/><path d="M15 10l7-4v12l-7-4z"/></svg>
+                AI 动作识别
+              </a>
+              <div class="nav-sub-items">
+                <a href="{{ url_for('modules.action_upload') }}" class="nav-item nav-sub-item {{ 'active' if active == 'action_upload' }}">
+                  <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4"/><path d="M6 10l6-6 6 6"/><path d="M4 20h16"/></svg>
+                  上传视频
+                </a>
+                <a href="{{ url_for('modules.action_history') }}" class="nav-item nav-sub-item {{ 'active' if active == 'action_history' }}">
+                  <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                  识别历史
+                </a>
+                <a href="{{ url_for('modules.action_summary') }}" class="nav-item nav-sub-item {{ 'active' if active == 'action_summary' }}">
+                  <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+                  常见错误汇总
+                </a>
+                <a href="{{ url_for('modules.action_reports') }}" class="nav-item nav-sub-item {{ 'active' if active == 'action_reports' }}">
+                  <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+                  动作诊断报告库
+                </a>
+                <a href="{{ url_for('modules.action_training') }}" class="nav-item nav-sub-item {{ 'active' if active == 'action_training' }}">
+                  <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg>
+                  专项训练方案
+                </a>
+                <a href="{{ url_for('modules.action_profile') }}" class="nav-item nav-sub-item {{ 'active' if active == 'action_profile' }}">
+                  <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-6h6v6"/></svg>
+                  学生动作成长档案
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <a href="{{ url_for('auth.settings') }}" class="nav-item {{ 'active' if active == 'settings' }}">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="7" cy="18" r="2"/></svg>
+          系统设置
+        </a>
+      </nav>
+      <div class="sidebar-foot">
+        <a href="{{ url_for('auth.logout') }}">退出登录</a>
+        <button type="button" class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="收缩侧边栏">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        {% block page_back %}{% endblock %}
+        <div class="topbar-title">{% block page_title %}{% endblock %}</div>
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+          <input type="text" placeholder="搜索课表、学生、教案…">
+        </div>
+        <div class="topbar-right">
+          <button class="icon-btn" title="AI 助手（即将上线）">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>
+            AI
+          </button>
+          <select id="theme-select" class="theme-select">
+            <option value="theme-beige">米色·淡蓝</option>
+            <option value="theme-blue">纯白·淡蓝</option>
+            <option value="theme-green">清新绿</option>
+          </select>
+          <button class="icon-btn" title="工作台编辑（即将上线）">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          </button>
+          <div class="week-picker">
+            <span>教学周</span>
+            <select id="week-select">
+              {% for i in range(1, 19) %}<option value="{{ i }}">第 {{ i }} 周</option>{% endfor %}
+            </select>
+          </div>
+          <button class="icon-btn badge-dot" title="消息通知（即将上线）">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+          </button>
+          <div class="avatar" title="{{ user_name }}">{{ user_initial }}</div>
+        </div>
+      </header>
+
+      <div class="flash-area">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for category, msg in messages %}
+            <div class="flash {{ category }}">{{ msg }}</div>
+          {% endfor %}
+        {% endwith %}
+      </div>
+
+      <div class="content">
+        {% block content %}{% endblock %}
+      </div>
+
+      <footer class="bottombar">
+        <a class="quick-item" href="{{ url_for('workbench.index') }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></svg>
+          课表
+        </a>
+        <a class="quick-item" href="{{ url_for('workbench.students') }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1"/></svg>
+          名册
+        </a>
+        <a class="quick-item" href="{{ url_for('workbench.todos') }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>
+          待办
+        </a>
+        <a class="quick-item" href="{{ url_for('workbench.reflections', kind='教学反思') }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 3h5v5"/><path d="M19 3l-8 8"/><path d="M19 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h6"/></svg>
+          反思
+        </a>
+        <span class="sep"></span>
+        <a class="quick-item" href="{{ url_for('lesson_prep.index') }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>
+          教案生成
+        </a>
+        <a class="quick-item" href="{{ url_for('modules.action_upload') }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="6" width="13" height="12" rx="2"/><path d="M15 10l7-4v12l-7-4z"/></svg>
+          动作识别
+        </a>
+        <a class="quick-item" href="{{ url_for('modules.fitness_entry') }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>
+          体测评分
+        </a>
+      </footer>
+    </main>
+  </div>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/schedule.js') }}"></script>
+</body>
+</html>

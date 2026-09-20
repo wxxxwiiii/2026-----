@@ -1,0 +1,366 @@
+{% extends 'base.html' %}
+{% block page_back %}
+<a class="back-btn" href="{{ url_for('workbench.index') }}">← 返回</a>
+{% endblock %}
+{% block title %}教学进度{% endblock %}
+{% block page_title %}教学进度{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="toolbar">
+    <h2 style="margin:0">教学进度</h2>
+    <div class="form-inline">
+      <label style="margin:0">行政班
+        <select onchange="location.href='{{ url_for('workbench.progress') }}?pclass_id='+this.value" style="width:auto;margin-top:0">
+          {% for c in classes %}<option value="{{ c.id }}" {{ 'selected' if period_class and c.id == period_class.id }}>{{ c.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <button type="button" class="btn btn-outline" onclick="openPeriodAddModal()">手动添加课时</button>
+      <button type="button" class="btn btn-primary" onclick="openImportModal()">上传教学进度表</button>
+    </div>
+  </div>
+
+  {% if classes %}
+  <p class="muted" style="margin:4px 0 10px">课时可手动添加，也可以前往「教材资源库 → 上传教学进度表」批量导入。</p>
+
+  {% if periods %}
+  <table>
+    <thead><tr><th>课次</th><th>授课内容</th><th>课程名称</th><th>授课项目</th><th>授课地点</th><th>来源</th><th>操作</th></tr></thead>
+    <tbody>
+      {% for p in periods %}
+      <tr>
+        <td>{{ p.order_no if p.order_no is not none else '—' }}</td>
+        <td>
+          <details>
+            <summary>{{ p.name }}</summary>
+            <div style="white-space:pre-wrap;margin-top:6px">{{ p.content or p.name }}</div>
+            {% if p.week or p.section or p.hours %}
+            <div class="muted" style="font-size:12px;margin-top:6px">
+              {% if p.week %}星期：{{ p.week }}　{% endif %}{% if p.section %}节次：{{ p.section }}　{% endif %}{% if p.hours %}本次学时：{{ p.hours }}{% endif %}
+            </div>
+            {% endif %}
+            {% if p.homework %}<div class="muted" style="font-size:12px;white-space:pre-wrap;margin-top:4px">作业：{{ p.homework }}</div>{% endif %}
+            {% if p.note %}<div class="muted" style="font-size:12px;margin-top:4px">备注：{{ p.note }}</div>{% endif %}
+          </details>
+        </td>
+        <td>{{ p.course_name or '—' }}</td>
+        <td>{{ p.sport_item or '—' }}</td>
+        <td>{{ p.location or '—' }}</td>
+        <td>
+          {% if p.source_type == 'schedule_import' %}<span class="tag info">进度表导入</span>{% else %}<span class="tag success">手动添加</span>{% endif %}
+        </td>
+        <td>
+          <button type="button" class="btn btn-outline btn-sm" data-id="{{ p.id }}" onclick="openPeriodModal(this)">编辑</button>
+          {% if p.source_file_id %}
+            {% if source_map.get(p.source_file_id) %}
+            <a class="btn btn-outline btn-sm" href="{{ source_map[p.source_file_id].file_path }}" target="_blank" title="查看原始上传文档">溯源</a>
+            {% else %}
+            <button type="button" class="btn btn-outline btn-sm" disabled title="源文件已删除">溯源</button>
+            {% endif %}
+          {% endif %}
+          <form method="post" action="{{ url_for('workbench.period_delete', pid=p.id) }}" style="display:inline" onsubmit="return confirm('确定删除该课时吗？历史分层数据将归档保留。')">
+            <button type="submit" class="btn btn-danger btn-sm">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">该班级尚未配置课时，可点击上方「手动添加课时」或「上传教学进度表」批量导入。未配置课时将无法进行学情分层。</p>
+  {% endif %}
+  {% else %}
+  <p class="muted">请先到「学生名册 → 班级管理」新建班级，再维护教学进度。</p>
+  {% endif %}
+</div>
+
+<div class="modal-mask" id="import-modal" style="display:none">
+  <div class="modal-box" style="width:880px;max-width:95vw;max-height:90vh;overflow:auto">
+    <div id="import-step1">
+      <h3>上传教学进度表</h3>
+      <div class="form-inline" style="margin-bottom:8px">
+        <a class="btn btn-outline btn-sm" href="{{ url_for('lesson_prep.periods_template') }}">下载标准导入模板</a>
+      </div>
+      <label>选择文件（xlsx / doc / docx）<input type="file" id="imp-file" accept=".xlsx,.doc,.docx"></label>
+      <label>绑定班级（可多选）
+        <div class="sport-check-group">
+          {% for c in classes %}<label class="sport-check"><input type="checkbox" class="js-imp-class" value="{{ c.id }}"> {{ c.name }}</label>{% endfor %}
+        </div>
+      </label>
+      <div class="form-grid">
+        <label>课程名称 <select id="imp-course">{% for n in course_names %}<option value="{{ n }}">{{ n }}</option>{% endfor %}</select></label>
+        <label>授课项目 <select id="imp-sport">{% for p in project_items %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select></label>
+        <label>授课地点 <input type="text" id="imp-location"></label>
+      </div>
+      <div style="margin:10px 0">
+        导入模式：
+        <label class="sport-check" style="border:none;padding:0"><input type="radio" name="imp-mode" value="append" checked> 追加导入</label>
+        <label class="sport-check" style="border:none;padding:0;margin-left:12px"><input type="radio" name="imp-mode" value="cover"> 覆盖导入</label>
+      </div>
+      <p class="muted" style="margin:0 0 8px">覆盖导入将删除所选班级「进度表导入」来源的已有课时，手动新增课时保留。</p>
+      <div class="modal-actions">
+        <button type="button" class="btn" onclick="closeImportModal()">取消</button>
+        <button type="button" class="btn btn-primary" id="imp-parse">上传解析</button>
+      </div>
+    </div>
+    <div id="import-preview" style="display:none">
+      <h3>导入预览</h3>
+      <div id="imp-warning" style="display:none;background:#fdf3e3;border-left:4px solid #b07a2a;padding:8px 12px;margin-bottom:10px"></div>
+      <div id="imp-conflict" style="display:none;background:#fbeae9;border-left:4px solid #b03a34;padding:8px 12px;margin-bottom:10px;color:#b03a34"></div>
+      <table>
+        <thead><tr><th>课次</th><th>授课内容</th><th>授课项目</th><th>授课地点</th></tr></thead>
+        <tbody id="imp-row-body"></tbody>
+      </table>
+      <div class="modal-actions">
+        <button type="button" class="btn" onclick="backToStep1()">返回</button>
+        <button type="button" class="btn btn-primary" id="imp-confirm">确认导入</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var PERIODS_DATA = {{ periods_data|tojson }};
+var PROJECT_ITEMS = {{ project_items|tojson }};
+var SPORT_VENUES = {{ sport_venues|tojson }};
+var COURSE_NAMES = {{ course_names|tojson }};
+var TOKEN = null;
+var ROWS = [];
+var EXISTING = [];
+
+// ---- 手动添加课时弹窗 ----
+function openPeriodAddModal() {
+  var box = appModal().querySelector('.modal-box');
+  box.style.width = '440px';
+  box.innerHTML =
+    '<form method="post" action="{{ url_for('workbench.period_add') }}">' +
+      '<input type="hidden" name="class_id" value="{{ period_class.id if period_class else '' }}">' +
+      '<h3>手动添加课时</h3>' +
+      '<label>课时名称<input type="text" name="name" required placeholder="如：第1课时 篮球运球"></label>' +
+      '<label>排序<input type="number" name="order_no" min="0" step="1" placeholder="如：1"></label>' +
+      '<label>备注<input type="text" name="note"></label>' +
+      '<div class="modal-actions"><button type="button" class="btn" onclick="appCloseModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>' +
+    '</form>';
+  appModal().style.display = 'flex';
+}
+
+// ---- 课时编辑弹窗 ----
+function openPeriodModal(btn) {
+  var id = btn.getAttribute('data-id');
+  var p = PERIODS_DATA[id] || {};
+  var action = '{{ url_for('workbench.period_edit', pid=999999) }}'.replace('999999', id);
+  var sportOpts = '';
+  PROJECT_ITEMS.forEach(function (s) {
+    sportOpts += '<option value="' + esc(s) + '"' + (s === p.sport_item ? ' selected' : '') + '>' + esc(s) + '</option>';
+  });
+  var courseOpts = '';
+  COURSE_NAMES.forEach(function (c) {
+    courseOpts += '<option value="' + esc(c) + '"' + (c === p.course_name ? ' selected' : '') + '>' + esc(c) + '</option>';
+  });
+  var box = appModal().querySelector('.modal-box');
+  box.style.width = '520px';
+  box.innerHTML =
+    '<form method="post" action="' + action + '">' +
+      '<h3>编辑课时</h3>' +
+      '<div class="form-grid">' +
+        '<label>课次<input type="number" name="order_no" min="1" step="1" value="' + esc(p.order_no) + '"></label>' +
+        '<label>课程名称<select name="course_name"><option value="">（未设置）</option>' + courseOpts + '</select></label>' +
+        '<label>授课项目<select name="sport_item" id="pe-sport"><option value="">（未设置）</option>' + sportOpts + '</select></label>' +
+        '<label>授课地点<input type="text" name="location" id="pe-location" value="' + esc(p.location) + '"></label>' +
+        '<label>星期<input type="text" name="week" value="' + esc(p.week) + '"></label>' +
+        '<label>节次<input type="text" name="section" value="' + esc(p.section) + '"></label>' +
+        '<label>本次学时<input type="text" name="hours" value="' + esc(p.hours) + '"></label>' +
+      '</div>' +
+      '<label>授课内容<textarea name="content" rows="4">' + esc(p.content) + '</textarea></label>' +
+      '<label>作业<textarea name="homework" rows="2">' + esc(p.homework) + '</textarea></label>' +
+      '<label>备注<input type="text" name="note" value="' + esc(p.note) + '"></label>' +
+      '<div class="modal-actions"><button type="button" class="btn" onclick="appCloseModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>' +
+    '</form>';
+  appModal().style.display = 'flex';
+  document.getElementById('pe-sport').addEventListener('change', function () {
+    var v = SPORT_VENUES[this.value];
+    document.getElementById('pe-location').value = v == null ? '' : v;
+  });
+}
+
+// ---- 上传教学进度表弹窗 ----
+function sportOptions(selected) {
+  var html = '';
+  PROJECT_ITEMS.forEach(function (p) {
+    html += '<option value="' + esc(p) + '"' + (p === selected ? ' selected' : '') + '>' + esc(p) + '</option>';
+  });
+  return html;
+}
+function selectedClassIds() {
+  var ids = [];
+  document.querySelectorAll('.js-imp-class:checked').forEach(function (cb) { ids.push(parseInt(cb.value, 10)); });
+  return ids;
+}
+function openImportModal() {
+  document.getElementById('import-modal').style.display = 'flex';
+  document.getElementById('import-step1').style.display = 'block';
+  document.getElementById('import-preview').style.display = 'none';
+  document.getElementById('imp-file').value = '';
+  TOKEN = null; ROWS = []; EXISTING = [];
+}
+function closeImportModal() {
+  if (TOKEN) {
+    fetch('/lesson-prep/periods/import/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: TOKEN }) });
+  }
+  TOKEN = null; ROWS = []; EXISTING = [];
+  document.getElementById('import-modal').style.display = 'none';
+}
+function backToStep1() {
+  document.getElementById('import-preview').style.display = 'none';
+  document.getElementById('import-step1').style.display = 'block';
+}
+document.getElementById('import-modal').addEventListener('click', function (e) {
+  if (e.target === this) closeImportModal();
+});
+
+document.getElementById('imp-sport').addEventListener('change', function () {
+  var v = SPORT_VENUES[this.value];
+  document.getElementById('imp-location').value = v == null ? '' : v;
+});
+document.getElementById('imp-location').value = SPORT_VENUES[document.getElementById('imp-sport').value] || '';
+
+document.getElementById('imp-parse').addEventListener('click', function () {
+  var fileInput = document.getElementById('imp-file');
+  if (!fileInput.files || !fileInput.files[0]) { alert('请选择要上传的文件'); return; }
+  var fd = new FormData();
+  fd.append('file', fileInput.files[0]);
+  fetch('/lesson-prep/periods/import/parse', { method: 'POST', body: fd })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d.ok) { alert(d.error || '解析失败'); return; }
+      TOKEN = d.token; ROWS = d.rows || [];
+      var warn = document.getElementById('imp-warning');
+      if (d.warning) { warn.style.display = 'block'; warn.textContent = '⚠️ ' + d.warning; }
+      else { warn.style.display = 'none'; }
+      renderPreview();
+      loadExisting();
+      document.getElementById('import-step1').style.display = 'none';
+      document.getElementById('import-preview').style.display = 'block';
+    })
+    .catch(function (e) { alert('上传失败：' + e.message); });
+});
+
+function renderPreview() {
+  var sport = document.getElementById('imp-sport').value;
+  var loc = document.getElementById('imp-location').value;
+  var body = document.getElementById('imp-row-body');
+  var html = '';
+  ROWS.forEach(function (r) {
+    html += '<tr>' +
+      '<td><input type="number" class="js-order" min="1" step="1" value="' + esc(r.order_no) + '" style="width:70px"></td>' +
+      '<td style="white-space:pre-wrap;max-width:360px">' + esc(r.content) + '</td>' +
+      '<td><select class="js-sport" style="width:auto;margin-top:0">' + sportOptions(sport) + '</select></td>' +
+      '<td><input type="text" class="js-location" value="' + esc(loc) + '" style="width:110px"></td>' +
+      '</tr>';
+  });
+  body.innerHTML = html;
+  body.querySelectorAll('.js-sport').forEach(function (sel) {
+    sel.addEventListener('change', function () {
+      var tr = sel.closest('tr');
+      var v = SPORT_VENUES[sel.value];
+      tr.querySelector('.js-location').value = v == null ? '' : v;
+    });
+  });
+  body.querySelectorAll('.js-order').forEach(function (inp) {
+    inp.addEventListener('input', refreshConflicts);
+  });
+}
+
+function loadExisting() {
+  var mode = document.querySelector('input[name="imp-mode"]:checked').value;
+  var ids = selectedClassIds();
+  if (mode !== 'append' || ids.length === 0) { EXISTING = []; refreshConflicts(); return; }
+  var pending = ids.length;
+  var merged = [];
+  ids.forEach(function (id) {
+    fetch('/lesson-prep/periods/class-existing?class_id=' + encodeURIComponent(id))
+      .then(function (r) { return r.json(); })
+      .then(function (d) { merged = merged.concat(d.orders || []); })
+      .catch(function () {})
+      .then(function () {
+        pending -= 1;
+        if (pending === 0) { EXISTING = merged; refreshConflicts(); }
+      });
+  });
+}
+
+function refreshConflicts() {
+  var mode = document.querySelector('input[name="imp-mode"]:checked').value;
+  var trs = document.querySelectorAll('#imp-row-body tr');
+  var counts = {};
+  var conflicts = [];
+  trs.forEach(function (tr) {
+    tr.classList.remove('row-conflict');
+    var raw = tr.querySelector('.js-order').value.trim();
+    var n = parseInt(raw, 10);
+    var msg = null;
+    if (raw === '' || isNaN(n)) {
+      msg = '课次必须为数字';
+    } else if (mode === 'append' && EXISTING.indexOf(n) >= 0) {
+      msg = '课次 ' + n + ' 与所选班级已导入课时冲突';
+    } else {
+      counts[n] = (counts[n] || 0) + 1;
+      if (counts[n] > 1) msg = '课次 ' + n + ' 在本次导入中重复';
+    }
+    if (msg) { tr.classList.add('row-conflict'); conflicts.push(msg); }
+  });
+  var banner = document.getElementById('imp-conflict');
+  var btn = document.getElementById('imp-confirm');
+  if (conflicts.length) {
+    banner.style.display = 'block';
+    banner.textContent = '存在冲突：' + conflicts.join('；') + '。请修改课次后再确认导入。';
+    btn.disabled = true; btn.style.opacity = '.5';
+  } else {
+    banner.style.display = 'none';
+    btn.disabled = false; btn.style.opacity = '';
+  }
+}
+
+function collectRows() {
+  var result = [];
+  document.querySelectorAll('#imp-row-body tr').forEach(function (tr, i) {
+    var r = ROWS[i];
+    result.push({
+      order_no: parseInt(tr.querySelector('.js-order').value, 10),
+      content: r.content, week: r.week, section: r.section,
+      hours: r.hours, homework: r.homework, note: r.note,
+      sport_item: tr.querySelector('.js-sport').value,
+      location: tr.querySelector('.js-location').value.trim()
+    });
+  });
+  return result;
+}
+
+document.getElementById('imp-confirm').addEventListener('click', function () {
+  var ids = selectedClassIds();
+  if (ids.length === 0) { alert('请至少选择一个绑定班级'); return; }
+  var mode = document.querySelector('input[name="imp-mode"]:checked').value;
+  if (mode === 'cover' && !confirm('确定覆盖导入吗？将删除所选班级「进度表导入」来源的已有课时，此操作不可撤销！')) return;
+  var payload = {
+    token: TOKEN,
+    pclass_ids: ids,
+    course_name: document.getElementById('imp-course').value,
+    sport_item: document.getElementById('imp-sport').value,
+    location: document.getElementById('imp-location').value,
+    mode: mode,
+    rows: collectRows()
+  };
+  fetch('/lesson-prep/periods/import/confirm', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+  }).then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d.ok) { alert(d.error || '导入失败'); return; }
+      TOKEN = null;  // confirm 已清理临时文件
+      closeImportModal();
+      alert('导入成功：' + d.imported_classes + ' 个班级、' + d.imported_periods + ' 条课时');
+      location.reload();
+    })
+    .catch(function (e) { alert('导入失败：' + e.message); });
+});
+</script>
+{% endblock %}

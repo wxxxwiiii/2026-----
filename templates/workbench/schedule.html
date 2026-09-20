@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}教师课表{% endblock %}
+{% block page_title %}教师课表{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>添加课表</h2>
+  <form method="post" action="{{ url_for('workbench.schedule_add') }}">
+    <div class="form-grid">
+      <label>课程名称 <input type="text" name="course_name" required></label>
+      <label>星期
+        <select name="day_of_week">{% for i in range(7) %}<option value="{{ i }}">{{ days[i] }}</option>{% endfor %}</select>
+      </label>
+      <label>开始时间 <input type="text" name="start_time" placeholder="08:00"></label>
+      <label>结束时间 <input type="text" name="end_time" placeholder="09:30"></label>
+      <label>上课地点 <input type="text" name="location"></label>
+      <label>授课班级
+        <select name="class_id"><option value="">（未指定）</option>{% for c in classes %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select>
+      </label>
+    </div>
+    <label>备注 <input type="text" name="note"></label>
+    <button type="submit" class="btn btn-primary">添加</button>
+  </form>
+</div>
+
+{% for i in range(7) %}
+  {% if by_day[i] %}
+  <div class="card">
+    <h3>{{ days[i] }}</h3>
+    <table>
+      <thead><tr><th>课程</th><th>时间</th><th>地点</th><th>班级</th><th>备注</th><th>操作</th></tr></thead>
+      <tbody>
+        {% for s in by_day[i] %}
+        <tr>
+          <td>{{ s.course_name }}</td>
+          <td>{{ s.start_time or '' }} - {{ s.end_time or '' }}</td>
+          <td>{{ s.location or '—' }}</td>
+          <td>{{ class_map.get(s.class_id, '—') }}</td>
+          <td>{{ s.note or '—' }}</td>
+          <td>
+            <a href="{{ url_for('workbench.schedule_edit', sid=s.id) }}" class="btn btn-outline btn-sm">编辑</a>
+            <form method="post" action="{{ url_for('workbench.schedule_delete', sid=s.id) }}" style="display:inline" onsubmit="return confirm('确定删除这条课表吗？')">
+              <button type="submit" class="btn btn-danger btn-sm">删除</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% block page_back %}
+<a class="back-btn" href="{{ url_for('lesson_prep.index') }}">← 返回</a>
+{% endblock %}
+{% block title %}教材资源库{% endblock %}
+{% block page_title %}教材资源库{% endblock %}
+{% block content %}
+
+<div class="grid">
+  <div class="card">
+    <h2>上传本地教材资源</h2>
+    <form method="post" action="{{ url_for('lesson_prep.resource_add') }}" enctype="multipart/form-data">
+      <div class="form-grid">
+        <label>资源名称 <input type="text" name="name" id="res-name" required></label>
+        <label>分类
+          <select name="category">{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select>
+        </label>
+      </div>
+      <label>上传文件 <input type="file" name="file" id="res-file"></label>
+      <label>或外部链接 <input type="text" name="link" placeholder="https://..."></label>
+      <label>备注 <input type="text" name="note"></label>
+      <button type="submit" class="btn btn-primary">上传归档</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>线上智库・智能检索</h2>
+    <p class="muted">输入关键词，检索个人归档资源、本校图书馆馆藏、公共开放文献库，AI 依据高校体育课标、教材、期刊文献智能检索并展示相关内容片段。</p>
+    <div class="external-links">
+      <a class="ext-link" id="school-lib-link" href="#" target="_blank">本校图书馆网站 <span class="ext-icon">↗</span></a>
+      <a class="ext-link" href="https://www.cnki.net/" target="_blank">知网 <span class="ext-icon">↗</span></a>
+      <a class="ext-link" href="https://www.duxiu.com/" target="_blank">读秀学术 <span class="ext-icon">↗</span></a>
+      <a class="ext-link" href="https://www.wanfangdata.com.cn/" target="_blank">万方数据库 <span class="ext-icon">↗</span></a>
+      <a class="ext-link" href="https://www.icourse163.org/" target="_blank">中国大学 MOOC <span class="ext-icon">↗</span></a>
+      <a class="ext-link" href="https://www.sport.gov.cn/" target="_blank">国家体育总局 <span class="ext-icon">↗</span></a>
+      <a class="ext-link" href="https://www.nlc.cn/" target="_blank">中国国家图书馆 <span class="ext-icon">↗</span></a>
+      <a class="ext-link" href="http://www.sportinfo.net.cn/" target="_blank">中国体育资讯网 <span class="ext-icon">↗</span></a>
+      <a class="ext-link" href="https://www.smartedu.cn/" target="_blank">国家智慧教育平台 <span class="ext-icon">↗</span></a>
+      <a class="ext-link" href="https://www.eduyun.cn/" target="_blank">国家教育资源公共服务平台 <span class="ext-icon">↗</span></a>
+      <a class="ext-link" href="https://higher.smartedu.cn/" target="_blank">国家高等教育智慧教育平台 <span class="ext-icon">↗</span></a>
+      <a class="ext-link" href="https://www.51jiaoxi.com/" target="_blank">教习网 <span class="ext-icon">↗</span></a>
+    </div>
+    <div class="ai-input-row">
+      <input type="text" id="search-input" placeholder="如：立定跳远的技术要领与评分标准">
+      <button class="btn btn-primary" id="search-btn">检索</button>
+    </div>
+    <div id="search-result" style="display:none"></div>
+    <p class="muted" style="margin-top:12px">公共文献、图书馆馆藏资源仅限教学研究使用，原文阅读请遵守对应平台版权协议。</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="toolbar">
+    <h2 style="margin:0">资源列表（{{ items|length }}）</h2>
+    <div class="form-inline">
+      <label style="margin:0">分类筛选
+        <select onchange="location.href='{{ url_for('lesson_prep.resources') }}' + (this.value ? '?category=' + encodeURIComponent(this.value) : '')" style="width:auto;margin-top:0">
+          <option value="">全部</option>
+          {% for c in categories %}<option value="{{ c }}" {{ 'selected' if current_cat == c }}>{{ c }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+  </div>
+
+  {% if items %}
+  <table>
+    <thead><tr><th>名称</th><th>分类</th><th>文件/链接</th><th>备注</th><th>收藏</th><th>操作</th></tr></thead>
+    <tbody>
+      {% for r in items %}
+      <tr>
+        <td>{{ r.name }}</td>
+        <td><span class="tag info">{{ r.category }}</span></td>
+        <td>
+          {% if r.file_path %}<a href="{{ r.file_path }}" target="_blank">打开文件</a>
+          {% elif r.link %}<a href="{{ r.link }}" target="_blank">打开链接</a>
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {{ r.note or '—' }}
+          {% if r.category == '教学进度表' and resource_classes.get(r.id) %}
+          <div style="font-size:12px;margin-top:4px">
+            {% for cid, cname in resource_classes.get(r.id) %}
+            <span class="tag success">已同步至 {{ cname }}</span>
+            <a class="btn btn-outline btn-sm" href="{{ url_for('workbench.progress', pclass_id=cid) }}">跳转教学进度</a>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </td>
+        <td><button class="btn btn-sm js-collect" data-id="{{ r.id }}">☆ 收藏</button></td>
+        <td>
+          <form method="post" action="{{ url_for('lesson_prep.resource_delete', rid=r.id) }}" style="display:inline" onsubmit="return confirm('确定删除该资源吗？')">
+            <button type="submit" class="btn btn-danger btn-sm">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">暂无资源，请先在上方上传文件或添加链接。</p>
+  {% endif %}
+</div>
+
+<div id="toast" class="toast" style="display:none"></div>
+<script>
+// 上传文件后自动填充资源名称（取文件名，去掉扩展名）
+document.getElementById('res-file').addEventListener('change', function () {
+  var n = this.files && this.files[0] ? this.files[0].name : '';
+  if (n) document.getElementById('res-name').value = n.replace(/\.[^.]+$/, '');
+});
+
+// 收藏（按账号隔离，存 localStorage）
+var COL_KEY = 'collected_resources_{{ username }}';
+var collected = {};
+try { JSON.parse(localStorage.getItem(COL_KEY) || '[]').forEach(function (id) { collected[String(id)] = true; }); } catch (e) {}
+function saveCollected() { localStorage.setItem(COL_KEY, JSON.stringify(Object.keys(collected))); }
+document.querySelectorAll('.js-collect').forEach(function (btn) {
+  var id = btn.getAttribute('data-id');
+  function update() {
+    if (collected[String(id)]) { btn.textContent = '★ 已收藏'; btn.className = 'btn btn-sm btn-primary js-collect'; }
+    else { btn.textContent = '☆ 收藏'; btn.className = 'btn btn-sm btn-outline js-collect'; }
+  }
+  update();
+  btn.addEventListener('click', function () {
+    if (collected[String(id)]) { delete collected[String(id)]; } else { collected[String(id)] = true; }
+    saveCollected(); update();
+  });
+});
+
+// 线上智库检索（三层知识库）
+var currentResults = [];
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function () { t.style.display = 'none'; }, 2000);
+}
+
+// 获取本校图书馆官网网址
+fetch('/api/user-info').then(function (r) { return r.json(); }).then(function (data) {
+  var link = document.getElementById('school-lib-link');
+  if (data.school_library_url) {
+    link.setAttribute('href', data.school_library_url);
+  }
+  link.addEventListener('click', function (e) {
+    if (!data.school_library_url) {
+      e.preventDefault();
+      showToast('当前院校暂未配置图书馆网址');
+    }
+  });
+});
+document.getElementById('search-btn').addEventListener('click', function () {
+  var q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+  var box = document.getElementById('search-result');
+  box.style.display = 'block';
+  box.innerHTML = '<p class="muted">检索中…</p>';
+  fetch('/api/rag/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ keyword: q, top_k: 10 })
+  }).then(function (r) { return r.json(); }).then(function (data) {
+    var results = data.results || [];
+    currentResults = results;
+    if (results.length === 0) { box.innerHTML = '<p class="muted">未检索到相关文献</p>'; return; }
+    var html = '<div class="rag-list">';
+    results.forEach(function (res, i) {
+      var srcCls = res.source === 'local' ? 'info' : (res.source === 'library' ? 'warning' : 'success');
+      html += '<div class="rag-item">' +
+        '<div class="rag-item-head"><span class="tag ' + srcCls + '">' + AI.escapeHtml(res.source_label) + '</span><b>' + AI.escapeHtml(res.title) + '</b></div>' +
+        '<div class="rag-snippet">' + AI.escapeHtml(res.snippet) + '</div>' +
+        '<div class="rag-item-actions">' +
+        (res.url ? '<a class="btn btn-outline btn-sm" href="' + AI.escapeHtml(res.url) + '" target="_blank">查看原文</a>' : '') +
+        '<button class="btn btn-outline btn-sm js-cite" data-index="' + i + '">引用至备课中心</button>' +
+        '</div></div>';
+    });
+    html += '</div>';
+    box.innerHTML = html;
+    box.querySelectorAll('.js-cite').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var res = currentResults[parseInt(btn.getAttribute('data-index'), 10)];
+        fetch('/api/rag/cite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ doc_id: res.doc_id, source_label: res.source_label, title: res.title, snippet: res.snippet, url: res.url })
+        }).then(function () {
+          btn.textContent = '✓ 已引用';
+          btn.disabled = true;
+          showToast('已引用到备课中心');
+        });
+      });
+    });
+  });
+});
+</script>
+{% endblock %}

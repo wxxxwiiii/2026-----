@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% block title %}专项训练方案 · AI 动作识别{% endblock %}
+{% block page_title %}专项训练方案{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <h2 style="margin:0">班级专项训练方案</h2>
+    <div class="form-inline" style="margin:0">
+      <select id="train-class" style="width:auto;margin-top:0">
+        <option value="">全部班级</option>
+        {% for c in classes %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+      </select>
+      <select id="train-sport" style="width:auto;margin-top:0" onchange="fillTechniques(this.value, 'train-tech')">
+        <option value="">全部项目</option>
+        {% for s in sport_types %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+      </select>
+      <select id="train-tech" style="width:auto;margin-top:0">
+        <option value="">全部技术动作</option>
+      </select>
+      <button type="button" class="btn btn-primary" id="train-generate" onclick="generatePlan()">生成训练方案</button>
+      <button type="button" class="btn btn-outline" id="plan-save" onclick="savePlan()" disabled>保存方案</button>
+      <button type="button" class="btn btn-outline" id="plan-export" onclick="exportPlanPDF()" disabled>导出PDF</button>
+    </div>
+  </div>
+  <p class="muted" style="margin:6px 0 0">基于「常见错误汇总」的共性错误自动生成班级针对性训练方案；错误内容更新后可重新生成。</p>
+</div>
+
+<div class="card" id="plan-empty">
+  <p class="muted" style="margin:0">尚未生成方案。选择班级与项目后点击「生成训练方案」。</p>
+</div>
+
+<div class="card" id="plan-result" style="display:none">
+  <label>方案标题 <input type="text" id="plan-title" style="max-width:560px"></label>
+  <label>训练目标 <textarea id="plan-goals" rows="2"></textarea></label>
+  <h3 style="margin-bottom:6px">针对性练习（每条错误对应一条练习）</h3>
+  <div id="plan-practices"></div>
+  <label>课时安排建议 <textarea id="plan-schedule" rows="3"></textarea></label>
+  <label>练习要点 <textarea id="plan-points" rows="3"></textarea></label>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/echarts.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/action_common.js') }}"></script>
+<script>
+var SPORT_TECHNIQUES = {{ techniques|tojson }};
+var currentPlan = null;
+var currentCtx = {};
+
+function fillTechniques(sport, selectId) {
+  var sel = document.getElementById(selectId);
+  var opts = ['<option value="">全部技术动作</option>'];
+  (SPORT_TECHNIQUES[sport] || []).forEach(function (t) { opts.push('<option value="' + t + '">' + t + '</option>'); });
+  sel.innerHTML = opts.join('');
+}
+
+function ctx() {
+  return {
+    class_id: document.getElementById('train-class').value,
+    sport_type: document.getElementById('train-sport').value,
+    technique_action: document.getElementById('train-tech').value
+  };
+}
+
+function generatePlan() {
+  var c = ctx();
+  var btn = document.getElementById('train-generate');
+  btn.disabled = true; btn.textContent = '生成中…';
+  // 前置校验：无诊断数据时提前提示，不触发 AI 生成
+  fetch('/action/summary/data?class_id=' + encodeURIComponent(c.class_id) +
+        '&sport_type=' + encodeURIComponent(c.sport_type) +
+        '&technique_action=' + encodeURIComponent(c.technique_action) + '&count_only=1')
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.has_data === false) {
+        btn.disabled = false; btn.textContent = '生成训练方案';
+        alert('该班级+项目暂无动作诊断记录，请先完成学生视频动作识别');
+        return;
+      }
+      return fetch('/action/training/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ class_id: c.class_id, sport_type: c.sport_type, technique_action: c.technique_action })
+      }).then(function (r) { return r.json(); });
+    })
+    .then(function (res) {
+      if (!res) return;  // 前置校验未通过，已提前提示
+      btn.disabled = false; btn.textContent = '生成训练方案';
+      if (res.error) { alert(res.error); return; }
+      currentPlan = res.plan;
+      currentCtx = c;
+      renderPlan(res.plan);
+      document.getElementById('plan-save').disabled = false;
+      document.getElementById('plan-export').disabled = false;
+    })
+    .catch(function () { btn.disabled = false; btn.textContent = '生成训练方案'; alert('AI生成训练方案失败，请稍后重试'); });
+}
+
+function renderPlan(p) {
+  document.getElementById('plan-empty').style.display = 'none';
+  document.getElementById('plan-result').style.display = '';
+  document.getElementById('plan-title').value = p.title || '';
+  document.getElementById('plan-goals').value = p.goals || '';
+  document.getElementById('plan-schedule').value = p.schedule || '';
+  document.getElementById('plan-points').value = p.points || '';
+  var html = '';
+  (p.practices || []).forEach(function (pr, i) {
+    html += '<label>' + esc(pr.error_name || ('错误' + (i + 1))) +
+      '<textarea class="plan-practice" rows="2" data-error="' + esc(pr.error_name || '') + '">' + esc(pr.practice || '') + '</textarea></label>';
+  });
+  document.getElementById('plan-practices').innerHTML = html || '<p class="muted">暂无练习建议。</p>';
+}
+
+function collectPlan() {
+  var practices = Array.prototype.map.call(document.querySelectorAll('.plan-practice'), function (t) {
+    return { error_name: t.getAttribute('data-error'), practice: t.value.trim() };
+  });
+  return {
+    title: document.getElementById('plan-title').value.trim(),
+    goals: document.getElementById('plan-goals').value.trim(),
+    practices: practices,
+    schedule: document.getElementById('plan-schedule').value.trim(),
+    points: document.getElementById('plan-points').value.trim()
+  };
+}
+
+function savePlan() {
+  var plan = collectPlan();
+  if (!plan.title) { alert('请填写方案标题'); return; }
+  fetch('/action/training/save', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ class_id: currentCtx.class_id || null, sport_type: currentCtx.sport_type,
+      technique_action: currentCtx.technique_action, title: plan.title, content: plan })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (d.error) { alert(d.error); } else { alert('方案已保存'); }
+  }).catch(function (e) { alert('保存失败：' + e); });
+}
+
+function exportPlanPDF() {
+  var plan = collectPlan();
+  var title = (currentCtx.class_id ? document.getElementById('train-class').selectedOptions[0].text : '班级') +
+    ' · ' + (currentCtx.sport_type || '全部项目') + ' · 专项训练方案';
+  var form = document.createElement('form');
+  form.method = 'post'; form.action = '/action/training/pdf'; form.target = '_blank';
+  var inp = document.createElement('input');
+  inp.type = 'hidden'; inp.name = 'data';
+  inp.value = JSON.stringify({ title: title, subtitle: '', plan: plan });
+  form.appendChild(inp);
+  document.body.appendChild(form); form.submit(); document.body.removeChild(form);
+}
+</script>
+{% endblock %}

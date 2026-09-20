@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}智能备课台{% endblock %}
+{% block page_title %}智能备课台{% endblock %}
+{% block content %}
+
+<div class="lp-cards">
+  <a class="lp-card" href="{{ url_for('lesson_prep.resources') }}">
+    <div class="lp-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 5v16"/></svg></div>
+    <h3>教材资源库</h3>
+    <p>支持本地体育教材上传归档，可智能检索全网高校体育课标、教材与优质教案，为全流程智能备课提供权威素材支撑。</p>
+    <span class="tag success">进入</span>
+  </a>
+  <a class="lp-card" href="{{ url_for('lesson_prep.ai_center') }}">
+    <div class="lp-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg></div>
+    <h3>AI 智能备课中心</h3>
+    <p>内置多 AI 模型自由切换，支持实时流式对话，可依据体育课标智能新建教案、修订已有教案，一键生成全套备课内容。</p>
+    <span class="tag success">进入</span>
+  </a>
+  <a class="lp-card" href="{{ url_for('lesson_prep.plans') }}">
+    <div class="lp-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg></div>
+    <h3>教案编辑与版本管理</h3>
+    <p>提供高校体育专属可视化教案编辑器，自动留存备课版本，支持版本回溯、对比与迭代，沉淀教学优化记录。</p>
+    <span class="tag success">进入</span>
+  </a>
+  <a class="lp-card" href="{{ url_for('lesson_prep.layered') }}">
+    <div class="lp-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></div>
+    <h3>学情分层作业中心</h3>
+    <p>对接学生体育体能、技能学情数据，智能生成差异化分层作业与体能训练方案，落地高校体育分层教学。</p>
+    <span class="tag success">进入</span>
+  </a>
+  <a class="lp-card" href="{{ url_for('lesson_prep.outcomes') }}">
+    <div class="lp-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 13l2 2 4-4"/></svg></div>
+    <h3>备课成果管理</h3>
+    <p>统一收纳所有备课产出，自动生成课前、课中、课后一体化学习单，支持成果预览、导出、复用与课时检索。</p>
+    <span class="tag success">进入</span>
+  </a>
+</div>
+
+<button class="ai-fab" id="ai-fab" title="AI 快捷对话">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>
+  AI
+</button>
+
+<div class="ai-drawer" id="ai-drawer">
+  <div class="ai-drawer-head">
+    <b>AI 智能助手</b>
+    <select id="ai-provider" class="ai-select"></select>
+    <select id="ai-model" class="ai-select"></select>
+    <button class="ai-close" id="ai-close" title="关闭">×</button>
+  </div>
+  <div class="ai-messages" id="ai-messages"></div>
+  <div class="ai-input-row">
+    <input type="text" id="ai-input" placeholder="输入问题，如：帮我设计一节篮球课教案">
+    <button class="btn btn-primary" id="ai-send">发送</button>
+  </div>
+</div>
+
+<script>
+var PROVIDERS = {{ providers|tojson }};
+var providerSel = document.getElementById('ai-provider');
+var modelSel = document.getElementById('ai-model');
+AI.initModelSelectors(providerSel, modelSel, PROVIDERS);
+
+var drawer = document.getElementById('ai-drawer');
+var messagesBox = document.getElementById('ai-messages');
+
+function addMsg(role, text) {
+  var div = document.createElement('div');
+  div.className = 'chat-msg ' + role;
+  div.textContent = text;
+  messagesBox.appendChild(div);
+  messagesBox.scrollTop = messagesBox.scrollHeight;
+  return div;
+}
+function renderHistory() {
+  messagesBox.innerHTML = '';
+  AI.getConversation().forEach(function (m) {
+    addMsg(m.role === 'user' ? 'user' : 'assistant', m.content);
+  });
+}
+
+document.getElementById('ai-fab').addEventListener('click', function () {
+  drawer.classList.toggle('open');
+  if (drawer.classList.contains('open')) renderHistory();
+});
+document.getElementById('ai-close').addEventListener('click', function () {
+  drawer.classList.remove('open');
+});
+
+function send() {
+  var input = document.getElementById('ai-input');
+  var text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addMsg('user', text);
+  var asst = addMsg('assistant', '');
+  AI.send(text, function (delta, full) {
+    asst.textContent = full;
+    messagesBox.scrollTop = messagesBox.scrollHeight;
+  }).catch(function (e) {
+    asst.textContent = '⚠️ ' + e.message;
+  });
+}
+
+document.getElementById('ai-send').addEventListener('click', send);
+document.getElementById('ai-input').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') send();
+});
+</script>
+{% endblock %}

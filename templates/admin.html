@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block title %}后台管理{% endblock %}
+{% block page_title %}后台管理{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h2>院校管理</h2>
+  <form method="post" action="{{ url_for('admin.school_add') }}" class="form-grid" style="margin-bottom:14px">
+    <label>院校名称 <input type="text" name="name" required></label>
+    <label>图书馆类型
+      <select name="lib_type">{% for v, n in lib_types %}<option value="{{ v }}">{{ n }}</option>{% endfor %}</select>
+    </label>
+    <label>图书馆接口地址 <input type="text" name="lib_endpoint" placeholder="OAI-PMH / 超星 API 地址"></label>
+    <label>图书馆密钥 <input type="password" name="lib_key" autocomplete="off"></label>
+    <label>图书馆官网网址 <input type="text" name="lib_website" placeholder="用于「本校图书馆网站」跳转"></label>
+    <label>启用 <select name="lib_enabled"><option value="0">否</option><option value="1">是</option></select></label>
+    <div style="display:flex;align-items:flex-end"><button type="submit" class="btn btn-primary">新增院校</button></div>
+  </form>
+
+  {% if schools %}
+  <table>
+    <thead><tr><th>院校</th><th>类型</th><th>官网网址</th><th>接口地址</th><th>启用</th><th>操作</th></tr></thead>
+    <tbody>
+      {% for s in schools %}
+      <tr>
+        <td>{{ s.name }}</td>
+        <td>{{ 'OAI-PMH' if s.lib_type == 'oai' else '超星' }}</td>
+        <td>{{ s.lib_website or '—' }}</td>
+        <td>{{ s.lib_endpoint or '—' }}</td>
+        <td>{{ '是' if s.lib_enabled else '否' }}</td>
+        <td>
+          <details>
+            <summary>编辑</summary>
+            <form method="post" action="{{ url_for('admin.school_edit', sid=s.id) }}" class="form-grid">
+              <label>名称 <input type="text" name="name" value="{{ s.name }}" required></label>
+              <label>类型 <select name="lib_type">{% for v, n in lib_types %}<option value="{{ v }}" {{ 'selected' if s.lib_type == v }}>{{ n }}</option>{% endfor %}</select></label>
+              <label>接口地址 <input type="text" name="lib_endpoint" value="{{ s.lib_endpoint or '' }}"></label>
+              <label>密钥 <input type="password" name="lib_key" value="{{ s.lib_key or '' }}" autocomplete="off"></label>
+              <label>官网网址 <input type="text" name="lib_website" value="{{ s.lib_website or '' }}"></label>
+              <label>启用 <select name="lib_enabled"><option value="0" {{ 'selected' if not s.lib_enabled }}>否</option><option value="1" {{ 'selected' if s.lib_enabled }}>是</option></select></label>
+              <div style="display:flex;align-items:flex-end"><button type="submit" class="btn btn-primary btn-sm">保存</button></div>
+            </form>
+          </details>
+          <form method="post" action="{{ url_for('admin.school_delete', sid=s.id) }}" style="display:inline" onsubmit="return confirm('确定删除该院校吗？')">
+            <button type="submit" class="btn btn-danger btn-sm">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">暂无院校。</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>公共文献 API 配置</h2>
+  <form method="post" action="{{ url_for('admin.public_config') }}">
+    <table>
+      <thead><tr><th>文献库</th><th>启用</th><th>API 密钥</th><th>频率限制（次/分）</th></tr></thead>
+      <tbody>
+        {% for k in public_keys %}
+        <tr>
+          <td>{{ public_labels[k] }}</td>
+          <td><input type="checkbox" name="enabled_{{ k }}" value="1" {{ 'checked' if config[k].enabled }}></td>
+          <td><input type="password" name="key_{{ k }}" value="{{ config[k].api_key }}" autocomplete="off"></td>
+          <td><input type="number" name="rate_{{ k }}" value="{{ config[k].rate }}" min="1" style="width:100px"></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="margin-top:12px"><button type="submit" class="btn btn-primary">保存配置</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>API 调用日志</h2>
+  {% if logs %}
+  <table>
+    <thead><tr><th>时间</th><th>来源</th><th>关键词</th></tr></thead>
+    <tbody>
+      {% for l in logs %}
+      <tr><td>{{ l.created_at }}</td><td>{{ l.source }}</td><td>{{ l.keyword }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">暂无调用日志。</p>{% endif %}
+</div>
+
+{% endblock %}

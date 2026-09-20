@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}识别历史 · AI 动作识别{% endblock %}
+{% block page_title %}识别历史{% endblock %}
+{% block content %}
+
+<div class="card">
+  <form method="get" action="{{ url_for('modules.action_history') }}" class="form-inline" style="flex-wrap:wrap">
+    <label style="margin:0">班级
+      <select name="class_id" style="width:auto;margin-top:0">
+        <option value="">全部班级</option>
+        {% for c in classes %}<option value="{{ c.id }}" {{ 'selected' if cid == c.id }}>{{ c.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label style="margin:0">项目
+      <select name="sport_type" style="width:auto;margin-top:0">
+        <option value="">全部项目</option>
+        {% for s in sport_types %}<option value="{{ s }}" {{ 'selected' if s == sport_type }}>{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+    <label style="margin:0">学生
+      <select name="student_id" style="width:auto;margin-top:0">
+        <option value="">全部学生</option>
+        {% for s in students %}<option value="{{ s.id }}" {{ 'selected' if student_id == s.id }}>{{ s.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label style="margin:0">起始 <input type="date" name="date_from" value="{{ date_from }}" style="width:auto;margin-top:0"></label>
+    <label style="margin:0">截止 <input type="date" name="date_to" value="{{ date_to }}" style="width:auto;margin-top:0"></label>
+    <button type="submit" class="btn btn-outline">筛选</button>
+    <a class="btn btn-outline btn-sm" href="{{ url_for('modules.action_history') }}">重置</a>
+  </form>
+</div>
+
+<div class="card">
+  <h2>识别记录</h2>
+  {% if analyses %}
+  <table>
+    <thead><tr><th>学生</th><th>项目</th><th>技术动作</th><th>识别时间</th><th>状态</th><th>操作</th></tr></thead>
+    <tbody>
+      {% for a in analyses %}
+      <tr>
+        <td>{{ student_map.get(a.student_id, '—') }}</td>
+        <td><span class="tag info">{{ a.sport_type or '—' }}</span></td>
+        <td>{{ a.technique_action or '未识别技术动作' }}</td>
+        <td>{{ a.created_at.strftime('%Y-%m-%d %H:%M') if a.created_at else '—' }}</td>
+        <td>
+          {% set st = a.status or 'success' %}
+          <span class="tag {{ 'success' if st == 'success' else ('warning' if st in ('pending','processing','no_human','not_install') else 'danger') }}">{{ status_labels.get(st, st) }}</span>
+          {% if a.error %}<div class="muted" style="font-size:12px">{{ a.error }}</div>{% endif %}
+        </td>
+        <td>
+          {% if a.video_path %}<button type="button" class="btn btn-outline btn-sm" onclick="openAnalysisModal({{ a.id }})">查看视频</button>{% endif %}
+          <a class="btn btn-outline btn-sm" href="{{ url_for('modules.action_report_pdf', aid=a.id) }}" target="_blank">导出PDF</a>
+          <form method="post" action="{{ url_for('modules.action_delete', aid=a.id) }}" style="display:inline" onsubmit="return confirm('确定删除该诊断记录吗？删除后视频、骨骼数据与诊断结果一并清除。')">
+            <button type="submit" class="btn btn-danger btn-sm">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">暂无识别记录。请到「上传视频」页面上传训练视频。</p>
+  {% endif %}
+</div>
+
+<script src="{{ url_for('static', filename='js/action_common.js') }}"></script>
+{% endblock %}

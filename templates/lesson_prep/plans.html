@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block page_back %}
+<a class="back-btn" href="{{ url_for('lesson_prep.index') }}">← 返回</a>
+{% endblock %}
+{% block title %}教案编辑与版本管理{% endblock %}
+{% block page_title %}教案编辑与版本管理{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="toolbar">
+    <h2 style="margin:0">教案列表</h2>
+    <div class="actions">
+      <button class="btn btn-outline" id="import-btn">导入教案</button>
+      <a class="btn btn-primary" href="{{ url_for('lesson_prep.plan_new') }}">新建教案</a>
+    </div>
+  </div>
+
+  <form method="get" action="{{ url_for('lesson_prep.plans') }}" class="form-inline" style="margin-bottom:14px;flex-wrap:wrap">
+    <input type="text" name="keyword" value="{{ keyword }}" placeholder="关键词搜索" style="width:170px;margin:0">
+    <select name="category" style="width:auto;margin:0">
+      <option value="">资源分类：全部</option>
+      {% for c in categories %}<option value="{{ c }}" {{ 'selected' if cur_category == c }}>{{ c }}</option>{% endfor %}
+    </select>
+    <select name="sport_item" style="width:auto;margin:0">
+      <option value="">项目类型：全部</option>
+      {% for s in sport_items %}<option value="{{ s }}" {{ 'selected' if cur_sport == s }}>{{ s }}</option>{% endfor %}
+    </select>
+    <select name="grade" style="width:auto;margin:0">
+      <option value="">年级：全部</option>
+      {% for g in grades %}<option value="{{ g }}" {{ 'selected' if cur_grade == g }}>{{ g }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn btn-outline btn-sm">筛选</button>
+  </form>
+
+  {% if plans %}
+  <table>
+    <thead><tr><th>标题</th><th>项目类型</th><th>年级</th><th>分类</th><th>版本</th><th>更新时间</th><th>操作</th></tr></thead>
+    <tbody>
+      {% for p in plans %}
+      <tr>
+        <td>{{ p.title }}</td>
+        <td>{{ p.sport_item or '—' }}</td>
+        <td>{{ p.grade or '—' }}</td>
+        <td>{{ p.category or '—' }}</td>
+        <td><span class="tag info">v{{ p.version }}</span></td>
+        <td>{{ p.created_at }}</td>
+        <td>
+          <a class="btn btn-outline btn-sm" href="{{ url_for('lesson_prep.plan_edit', pid=p.id) }}">编辑</a>
+          <a class="btn btn-outline btn-sm" href="{{ url_for('lesson_prep.plan_history', pid=p.id) }}">版本历史</a>
+          <form method="post" action="{{ url_for('lesson_prep.plan_delete', pid=p.id) }}" style="display:inline" onsubmit="return confirm('确定删除该教案（含全部版本）吗？')">
+            <button type="submit" class="btn btn-danger btn-sm">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">暂无教案，点「导入教案」或「新建教案」，或在 AI 备课中心生成。</p>
+  {% endif %}
+</div>
+
+<div class="modal-mask" id="import-modal" style="display:none">
+  <div class="modal-box" style="width:420px">
+    <h3>导入教案</h3>
+    <p class="muted" style="margin-bottom:10px">Word（.docx）可编辑导入，PDF 仅预览（不支持在线编辑）。提示：Word 内复杂合并单元格、手绘图形，导入后可能存在少量样式偏移，请导入后核对教案。</p>
+    <form id="import-form">
+      <label>文件选择 <input type="file" id="import-file" accept=".docx,.pdf,.png,.jpg,.jpeg" required></label>
+      <label>教案名称 <input type="text" id="import-name" placeholder="选择文件后自动填充"></label>
+      <label>资源分类 <select id="import-category">{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select></label>
+      <label>项目类型 <select id="import-sport">{% for s in sport_items %}<option>{{ s }}</option>{% endfor %}</select></label>
+      <label>年级 <select id="import-grade">{% for g in grades %}<option>{{ g }}</option>{% endfor %}</select></label>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="import-cancel">取消</button>
+        <button type="submit" class="btn btn-primary">确认导入</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.getElementById('import-btn').addEventListener('click', function () {
+  document.getElementById('import-modal').style.display = 'flex';
+});
+document.getElementById('import-cancel').addEventListener('click', function () {
+  document.getElementById('import-modal').style.display = 'none';
+});
+document.getElementById('import-file').addEventListener('change', function () {
+  var n = this.files && this.files[0] ? this.files[0].name : '';
+  if (n) document.getElementById('import-name').value = n.replace(/\.[^.]+$/, '');
+});
+document.getElementById('import-form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var fd = new FormData();
+  fd.append('file', document.getElementById('import-file').files[0]);
+  fd.append('name', document.getElementById('import-name').value);
+  fd.append('category', document.getElementById('import-category').value);
+  fd.append('sport_item', document.getElementById('import-sport').value);
+  fd.append('grade', document.getElementById('import-grade').value);
+  var btn = this.querySelector('button[type="submit"]');
+  btn.disabled = true; btn.textContent = '导入中…';
+  fetch('/lesson-prep/plans/import', { method: 'POST', body: fd })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.ok) {
+        var url = '/lesson-prep/plans/' + d.plan_id + '/edit?quality=' + encodeURIComponent(d.parse_quality || 'full') + '&original_url=' + encodeURIComponent(d.original_url || '');
+        location.href = url;
+      } else {
+        alert(d.error);
+        btn.disabled = false; btn.textContent = '确认导入';
+      }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block page_back %}
+<a class="back-btn" href="{{ url_for('lesson_prep.plan_history', pid=plan.id) }}">← 返回</a>
+{% endblock %}
+{% block title %}查看教案{% endblock %}
+{% block page_title %}查看教案：{{ plan.title }}{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="muted" style="margin-bottom:10px">
+    {{ plan.subject or '未指定主题' }} · {{ plan.duration or '未指定课时' }} · v{{ plan.version }}
+  </div>
+  <div class="plan-content">{{ plan.content|safe }}</div>
+</div>
+{% endblock %}

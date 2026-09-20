@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% block page_back %}
+<a class="back-btn" href="{{ url_for('workbench.index') }}">← 返回</a>
+{% endblock %}
+{% block title %}学生名册{% endblock %}
+{% block page_title %}学生名册{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="toolbar">
+    <h2 style="margin:0">班级管理</h2>
+    <button type="button" class="btn btn-primary btn-sm" onclick="openClassModal()">新建班级</button>
+  </div>
+
+  {% if classes %}
+  <table>
+    <thead><tr><th>班级</th><th>年级</th><th>运动项目</th><th>人数</th><th>操作</th></tr></thead>
+    <tbody>
+      {% for c in classes %}
+      <tr>
+        <td>{{ c.name }}</td>
+        <td>{{ c.grade or '—' }}</td>
+        <td>
+          {% set sports = bindings_map.get(c.id, []) %}
+          {% if sports %}
+            {% for s in sports %}<span class="tag info">{{ s }}</span>{% endfor %}
+          {% else %}<span class="muted">未配置</span>{% endif %}
+        </td>
+        <td>{{ counts.get(c.id, 0) }}</td>
+        <td>
+          <button type="button" class="btn btn-outline btn-sm"
+                  data-action="{{ url_for('workbench.class_edit', cid=c.id) }}"
+                  data-id="{{ c.id }}" data-name="{{ c.name }}" data-grade="{{ c.grade or '' }}"
+                  onclick="openClassModal(this)">编辑</button>
+          <form method="post" action="{{ url_for('workbench.class_delete', cid=c.id) }}" style="display:inline" onsubmit="return confirm('确定删除该班级吗？')">
+            <button type="submit" class="btn btn-danger btn-sm">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">还没有班级，请点击右上角「新建班级」。</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>学生名册</h2>
+  {% if classes %}
+  <div class="toolbar">
+    <div class="form-inline">
+      <label style="margin:0">当前班级
+        <select onchange="location.href='{{ url_for('workbench.students') }}?class_id='+this.value" style="width:auto;margin-top:0">
+          {% for c in classes %}<option value="{{ c.id }}" {{ 'selected' if selected and c.id == selected.id }}>{{ c.name }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="actions">
+      <form method="post" action="{{ url_for('workbench.students_import') }}" enctype="multipart/form-data" class="form-inline">
+        <input type="hidden" name="class_id" value="{{ selected.id if selected else '' }}">
+        <input type="file" name="file" accept=".xlsx,.xls,.csv" required>
+        <button type="submit" class="btn btn-outline">批量导入</button>
+      </form>
+    </div>
+  </div>
+
+  <form method="post" action="{{ url_for('workbench.student_add') }}" class="form-grid" style="margin-bottom:14px">
+    <input type="hidden" name="class_id" value="{{ selected.id if selected else '' }}">
+    <label>姓名 <input type="text" name="name" required></label>
+    <label>学号 <input type="text" name="student_no"></label>
+    <label>性别 <select name="gender"><option>男</option><option>女</option></select></label>
+    <label>备注 <input type="text" name="note"></label>
+    <div style="display:flex;align-items:flex-end"><button type="submit" class="btn btn-primary">添加学生</button></div>
+  </form>
+
+  {% if students %}
+  <table>
+    <thead><tr><th>学号</th><th>姓名</th><th>性别</th><th>备注</th><th>操作</th></tr></thead>
+    <tbody>
+      {% for s in students %}
+      <tr>
+        <td>{{ s.student_no or '—' }}</td>
+        <td>{{ s.name }}</td>
+        <td>{{ s.gender or '—' }}</td>
+        <td>{{ s.note or '—' }}</td>
+        <td>
+          <details>
+            <summary>编辑</summary>
+            <form method="post" action="{{ url_for('workbench.student_edit', sid=s.id) }}" class="form-grid">
+              <label>姓名 <input type="text" name="name" value="{{ s.name }}" required></label>
+              <label>学号 <input type="text" name="student_no" value="{{ s.student_no or '' }}"></label>
+              <label>性别 <select name="gender"><option {{ 'selected' if s.gender == '男' }}>男</option><option {{ 'selected' if s.gender == '女' }}>女</option></select></label>
+              <label>备注 <input type="text" name="note" value="{{ s.note or '' }}"></label>
+              <div style="display:flex;align-items:flex-end"><button type="submit" class="btn btn-primary btn-sm">保存</button></div>
+            </form>
+          </details>
+          <form method="post" action="{{ url_for('workbench.student_delete', sid=s.id) }}" style="display:inline" onsubmit="return confirm('确定删除该学生吗？')">
+            <button type="submit" class="btn btn-danger btn-sm">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">该班级还没有学生，可手动添加或批量导入。</p>
+  {% endif %}
+  {% else %}
+  <p class="muted">请先在上方新建班级，再录入学生。</p>
+  {% endif %}
+</div>
+
+<script>
+var SPORT_ITEMS = {{ sport_items|tojson }};
+var CLASS_SPORTS = {{ bindings_map|tojson }};
+
+function sportCheckboxes(checkedList) {
+  var html = '<div class="sport-check-group">';
+  SPORT_ITEMS.forEach(function (s) {
+    var checked = checkedList.indexOf(s) >= 0 ? ' checked' : '';
+    html += '<label class="sport-check"><input type="checkbox" name="sport_items" value="' + esc(s) + '"' + checked + '> ' + esc(s) + '</label>';
+  });
+  return html + '</div>';
+}
+
+function openClassModal(btn) {
+  var isEdit = !!btn;
+  var name = isEdit ? btn.getAttribute('data-name') : '';
+  var grade = isEdit ? btn.getAttribute('data-grade') : '';
+  var sports = isEdit ? (CLASS_SPORTS[btn.getAttribute('data-id')] || []) : [];
+  var action = isEdit ? btn.getAttribute('data-action') : '{{ url_for('workbench.class_add') }}';
+  var box = appModal().querySelector('.modal-box');
+  box.style.width = '440px';
+  box.innerHTML =
+    '<form method="post" action="' + action + '">' +
+      '<h3>' + (isEdit ? '编辑班级' : '新建班级') + '</h3>' +
+      '<label>班级名称<input type="text" name="name" required placeholder="如：2024级体育1班" value="' + esc(name) + '"></label>' +
+      '<label>年级<input type="text" name="grade" placeholder="如：2024级" value="' + esc(grade) + '"></label>' +
+      '<label>运动项目（可多选）' + sportCheckboxes(sports) + '</label>' +
+      '<div class="modal-actions"><button type="button" class="btn" onclick="appCloseModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>' +
+    '</form>';
+  appModal().style.display = 'flex';
+}
+</script>
+{% endblock %}
